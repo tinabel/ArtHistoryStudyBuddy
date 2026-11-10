@@ -31,7 +31,7 @@ const factOf = (c: WorkCard): string =>
 
 /** Offers "Edit details" for the tracked card, once its answer is on screen. */
 export function showEditButton(): void {
-  if (isEditable(target?.card ?? null)) $('editBar').innerHTML = '<button type="button" class="sec" data-action="study.edit">Edit details</button>';
+  if (isEditable(target?.card ?? null)) $('editBar').innerHTML = '<button type="button" class="secondary" data-action="study.edit">Edit details</button>';
 }
 
 /** The image the open form would save: set by "Find automatically", a chosen file or Remove. */
@@ -50,9 +50,9 @@ const imageFieldsHtml = (image: WorkImage): string => `
     <div id="editPreview" class="edit-preview">${previewHtml(image)}</div>
     <input type="text" id="editImageUrl" aria-label="Image link" placeholder="Paste an image link (https://…)" value="${esc(imageUrlFor(image))}">
     <div class="edit-actions">
-      <button type="button" class="sec" data-action="study.findImage">Find automatically</button>
-      <button type="button" class="sec" data-action="study.chooseImageFile">Choose a file…</button>
-      <button type="button" class="sec" data-action="study.removeImage">Remove</button>
+      <button type="button" class="secondary" data-action="study.findImage">Find automatically</button>
+      <button type="button" class="secondary" data-action="study.chooseImageFile">Choose a file…</button>
+      <button type="button" class="secondary" data-action="study.removeImage">Remove</button>
     </div>
     <input type="file" id="editImageFile" accept="image/*" hidden data-change="study.imageFileChosen">
     <div id="editImageMsg" class="small"></div>
@@ -69,7 +69,7 @@ function editFormHtml(c: Card): string {
     ${fields}
     <div id="editMsg" class="small">Saved to this exam. Leave a field empty if it's unknown.</div>
     <button type="button" data-action="study.saveEdit">Save</button>
-    <button type="button" class="sec" data-action="study.cancelEdit">Cancel</button>
+    <button type="button" class="secondary" data-action="study.cancelEdit">Cancel</button>
   </div>`;
 }
 

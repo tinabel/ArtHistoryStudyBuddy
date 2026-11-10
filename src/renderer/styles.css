@@ -1,10 +1,57 @@
-/* Everything is sized in rem, so scaling the root scales the whole UI with the window. */
-html { font-size: clamp(16px, .55vw + 11px, 24px); }
+/*
+ * Art History Study Buddy styles.
+ *
+ *   1. Theme        colours, corners, fonts: change the look here
+ *   2. Page         body, headings, panels
+ *   3. Helpers      small layout and text classes used across views
+ *   4. Controls     inputs, buttons, links, images
+ *   5. Lists        exam list (home) and work rows (editor)
+ *   6. Study        the card, choices and feedback
+ *   7. Edit details the form under a card
+ *
+ * No colour is written outside section 1: use the variables.
+ * Classes marked "set by JS" are added while the app runs (see ui/study.ts).
+ */
+
+/* ---------- 1. Theme ---------- */
+
+:root {
+  /* Surfaces, darkest to lightest */
+  --color-page: #1b1b1f;      /* window background */
+  --color-panel: #2a2a30;     /* the rounded panel each view sits in */
+  --color-control: #3a3a42;   /* inputs, divider lines, empty thumbnails */
+
+  /* Text */
+  --color-text: #eee;
+  --color-link: #9aa0ff;
+  --color-text-good: #5af08a; /* "Correct!" */
+  --color-text-bad: #f05a5a;  /* "Answer: ..." after a miss */
+
+  /* Buttons */
+  --color-button: #5a5af0;           /* main action */
+  --color-button-hover: #7676ff;
+  --color-button-secondary: #44444c; /* Cancel, Next, Browse... */
+  --color-button-danger: #a33;       /* delete, Missed, a wrong choice */
+  --color-button-good: #2a8a4a;      /* the right choice */
+  --color-button-text: #fff;
+
+  /* Shape and type */
+  --radius: 8px;
+  --radius-panel: 16px;
+  --shadow-panel: 0 4px 20px rgba(0, 0, 0, .4);
+  --font: -apple-system, sans-serif;
+  --thumb-size: 48px;
+
+  /* Everything else is sized in rem, so this one line scales the whole UI with the window. */
+  font-size: clamp(16px, .55vw + 11px, 24px);
+}
+
+/* ---------- 2. Page ---------- */
 
 body {
-  font-family: -apple-system, sans-serif;
-  background: #1b1b1f;
-  color: #eee;
+  font-family: var(--font);
+  background: var(--color-page);
+  color: var(--color-text);
   margin: 0;
   padding: clamp(.75rem, 4vw, 1.5rem);
   display: flex;
@@ -20,71 +67,82 @@ h1 { font-size: 1.5rem; margin: 0 0 1rem; }
 .panel h2 { font-size: 1.15rem; margin: 0 0 .8rem; }
 .panel h3 { font-size: 1rem; margin: .9rem 0 .4rem; }
 
+/* One per view: #home, #editor, #study */
 .panel {
-  background: #2a2a30;
-  border-radius: 16px;
+  background: var(--color-panel);
+  border-radius: var(--radius-panel);
   padding: clamp(.9rem, 4vw, 1.25rem);
   max-width: 48rem;
   width: 100%;
   box-sizing: border-box;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, .4);
+  box-shadow: var(--shadow-panel);
   margin-bottom: 1rem;
 }
 
-/* Layout helpers */
+/* ---------- 3. Helpers ---------- */
+
 .center { text-align: center; }
 .block { margin: .6rem 0; }
 .wide { width: 100%; margin-inline: 0; }
+.small { font-size: .8rem; opacity: .7; } /* hints, counts, status messages */
+.prompt { margin: 1rem 0; }
 
 /* Input + buttons on one line; wraps when narrow */
 .field-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .3rem 0; }
 .field-row > * { margin: 0; }
 .grow { flex: 1 1 10rem; min-width: 0; }
-.small { font-size: .8rem; opacity: .7; }
-.prompt { margin: 1rem 0; }
 
-/* Form controls */
+/* ---------- 4. Controls ---------- */
+
 input, select, textarea, button {
   box-sizing: border-box;
   max-width: 100%;
   font-size: .95rem;
   padding: .45rem .8rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: none;
   margin: .2rem;
 }
-input, select, textarea { background: #3a3a42; color: #eee; }
+input, select, textarea { background: var(--color-control); color: var(--color-text); }
 textarea { padding: .5rem; resize: vertical; }
-button { background: #5a5af0; color: #fff; cursor: pointer; }
-button:hover { background: #7676ff; }
-button.sec { background: #44444c; }
-button.del { background: #a33; }
 
-/* Images */
-img { max-width: 100%; max-height: min(60vh, 45rem); border-radius: 8px; margin-bottom: 1rem; }
-a.source { color: #9aa0ff; }
+/* Buttons: plain = main action; add .secondary or .danger for the other two kinds */
+button { background: var(--color-button); color: var(--color-button-text); cursor: pointer; }
+button:hover { background: var(--color-button-hover); }
+button.secondary { background: var(--color-button-secondary); }
+button.danger { background: var(--color-button-danger); }
 
-/* Lists */
+img { max-width: 100%; max-height: min(60vh, 45rem); border-radius: var(--radius); margin-bottom: 1rem; }
+a.source { color: var(--color-link); }
+
+/* ---------- 5. Lists ---------- */
+
+/* Home: one exam per row */
 .row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   padding: .4rem 0;
-  border-bottom: 1px solid #3a3a42;
+  border-bottom: 1px solid var(--color-control);
   gap: .5rem;
 }
+
+/* Editor: thumbnail + text + button, for search results and added works */
 .result { display: flex; align-items: center; gap: .5rem; padding: .3rem 0; font-size: .85rem; }
-.result img, .result .thumb { width: 48px; height: 48px; object-fit: cover; margin: 0; }
-.result .thumb { background: #3a3a42; border-radius: 8px; }
+.result img, .result .thumb { width: var(--thumb-size); height: var(--thumb-size); object-fit: cover; margin: 0; }
+.result .thumb { background: var(--color-control); border-radius: var(--radius); }
 .result .text { flex: 1; text-align: left; }
 
-/* Study screen */
+/* ---------- 6. Study ---------- */
+
+/* Back button and the mode / source dropdowns */
 .study-bar { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .4rem; }
 .study-bar button { white-space: nowrap; }
 .study-bar select { max-width: 100%; margin: 0; }
 #study { max-width: 80rem; }
 #card { margin-top: 1rem; }
+#score { margin-top: .8rem; }
 
 /* Wide windows: image beside the question/answer instead of above it */
 @media (min-width: 56rem) {
@@ -96,18 +154,22 @@ a.source { color: #9aa0ff; }
   }
   .card-media img { margin: 0; }
 }
-#score { margin-top: .8rem; }
-.choice { width: min(100%, 24rem); white-space: normal; }
-.choice.right { background: #2a8a4a; }
-.choice.wrong { background: #a33; }
-.correct { color: #5af08a; font-weight: bold; }
-.incorrect { color: #f05a5a; font-weight: bold; }
 
-/* Inline editor for a card's facts */
-.edit-form { text-align: left; margin-top: 1rem; padding-top: .8rem; border-top: 1px solid #3a3a42; }
+/* Multiple-choice buttons. .right / .wrong are set by JS once you answer. */
+.choice { width: min(100%, 24rem); white-space: normal; }
+.choice.right { background: var(--color-button-good); }
+.choice.wrong { background: var(--color-button-danger); }
+
+/* The line under the choices. Set by JS on #feedback. */
+.correct { color: var(--color-text-good); font-weight: bold; }
+.incorrect { color: var(--color-text-bad); font-weight: bold; }
+
+/* ---------- 7. Edit details ---------- */
+
+.edit-form { text-align: left; margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--color-control); }
 .edit-form label.field { display: block; margin: .5rem 0; font-size: .85rem; opacity: .9; }
 .edit-form input, .edit-form textarea { display: block; width: 100%; margin: .2rem 0 0; }
 .edit-preview { margin: .3rem 0; }
-.edit-preview img { max-width: 100%; max-height: 8rem; border-radius: 6px; margin: 0; }
+.edit-preview img { max-width: 100%; max-height: 8rem; border-radius: var(--radius); margin: 0; }
 .edit-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0; }
 .edit-actions button { margin: 0; }
