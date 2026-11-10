@@ -28,17 +28,24 @@ describe('lookupWorkInfo', () => {
   // Distinct artist / title names per test: lookups are cached for the session.
   it("prefers the artwork's own movement over the artist's", async () => {
     stubFetch(routes({ artist: 'Prefer Painter', artistId: 'Q5001', artistMovement: ['Q5101', 'impressionism'], work: { title: 'Prefer Work', id: 'Q5201', movement: ['Q5102', 'realism'] } }));
-    expect((await lookupWorkInfo({ artist: 'Prefer Painter', title: 'Prefer Work' })).movement).toBe('Realism');
+    expect((await lookupWorkInfo({ artist: 'Prefer Painter', title: 'Prefer Work' }))?.movement).toBe('Realism');
   });
 
   it("falls back to the artist's movement when the artwork has none", async () => {
     stubFetch(routes({ artist: 'Fallback Painter', artistId: 'Q5002', artistMovement: ['Q5103', 'impressionism'], work: { title: 'Fallback Work', id: 'Q5202' } }));
-    expect((await lookupWorkInfo({ artist: 'Fallback Painter', title: 'Fallback Work' })).movement).toBe('Impressionism');
+    expect((await lookupWorkInfo({ artist: 'Fallback Painter', title: 'Fallback Work' }))?.movement).toBe('Impressionism');
   });
 
   it("falls back to the artist's movement when the artwork isn't on Wikidata", async () => {
     stubFetch(routes({ artist: 'Lonely Painter', artistId: 'Q5003', artistMovement: ['Q5104', 'cubism'] }));
-    expect((await lookupWorkInfo({ artist: 'Lonely Painter', title: 'Not On Wikidata' })).movement).toBe('Cubism');
+    expect((await lookupWorkInfo({ artist: 'Lonely Painter', title: 'Not On Wikidata' }))?.movement).toBe('Cubism');
+  });
+
+  it('returns null when Wikidata cannot be reached, and asks again next time', async () => {
+    stubFetch([['wbsearchentities', new Error('down')]]);
+    expect(await lookupWorkInfo({ artist: 'Outage Painter', title: 'Outage Work' })).toBeNull();
+    stubFetch(routes({ artist: 'Outage Painter', artistId: 'Q5005', artistMovement: ['Q5106', 'dada'] }));
+    expect(await lookupWorkInfo({ artist: 'Outage Painter', title: 'Outage Work' })).toMatchObject({ movement: 'Dada' });
   });
 
   it('caches per artist and title, and reuses the artist lookup across works', async () => {

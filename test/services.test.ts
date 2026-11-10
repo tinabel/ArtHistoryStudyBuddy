@@ -1,7 +1,6 @@
 import { findWorkImage } from '../src/renderer/js/services/imageFinder.js';
 import { importExam } from '../src/renderer/js/services/importer.js';
-import { lookupArtistInfo } from '../src/renderer/js/services/artistInfo.js';
-import { enrichWorks } from '../src/renderer/js/services/enrich.js';
+import { enrichWorks, lookupArtistInfo } from '../src/renderer/js/services/workInfo.js';
 import type { Work } from '../src/renderer/js/types.js';
 import { restoreFetch, stubFetch } from './helpers/fakeFetch.js';
 
@@ -72,7 +71,7 @@ describe('lookupArtistInfo', () => {
 
   it('retries with the surname when the name has initials', async () => {
     stubFetch([['search=A.B.+Initialed', { search: [] }], ...artist('Initialed', 'Q502', 'Q602')]);
-    expect((await lookupArtistInfo('A.B. Initialed')).nationality).toBe('Testish');
+    expect((await lookupArtistInfo('A.B. Initialed'))?.nationality).toBe('Testish');
   });
 
   it('does not retry plain names, and handles empty input', async () => {

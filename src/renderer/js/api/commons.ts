@@ -1,4 +1,5 @@
 // Wikimedia Commons image search.
+import type { WorkImage } from '../types.js';
 import { getJson } from './http.js';
 
 const ENDPOINT = 'https://commons.wikimedia.org/w/api.php';
@@ -13,16 +14,11 @@ interface CommonsResponse {
   query?: { pages?: Record<string, CommonsPage> };
 }
 
-export interface FoundImage {
-  img: string;
-  src: string;
-}
-
 /**
  * Best-matching JPEG/PNG for `query`, preferring files whose name contains `surname`.
  * Returns null when nothing usable is found.
  */
-export async function findImage(query: string, surname: string): Promise<FoundImage | null> {
+export async function findImage(query: string, surname: string): Promise<WorkImage | null> {
   try {
     const r = await getJson<CommonsResponse>(ENDPOINT, {
       action: 'query', generator: 'search', gsrnamespace: '6', gsrlimit: '8',

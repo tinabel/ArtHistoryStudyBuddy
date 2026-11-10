@@ -1,8 +1,6 @@
 // Study logic: what can be studied and how a question is built.
 // Knows about exams and cards; knows nothing about the DOM or localStorage.
-import { FAMOUS_ARTISTS } from './data/artists.js';
-import { FAMOUS_MOVEMENTS } from './data/movements.js';
-import { FAMOUS_TITLES } from './data/titles.js';
+import { FAMOUS_ARTISTS, FAMOUS_MOVEMENTS, FAMOUS_TITLES } from './data/fallbacks.js';
 import { pickRandomWork } from './services/randomArt.js';
 import { maskTerm } from './textMask.js';
 import type { Card, CardError, Exam, Kind, Mode, Question, Source, Work } from './types.js';

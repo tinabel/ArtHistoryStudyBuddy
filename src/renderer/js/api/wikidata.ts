@@ -1,4 +1,7 @@
-// Wikidata lookups: an artist's nationality (as an adjective, e.g. "French").
+// Wikidata lookups: an artist's nationality (as an adjective, e.g. "French") and art movements.
+//
+// "Not on Wikidata" and "couldn't reach Wikidata" are different: unknown parts come back as '', but a network
+// failure, timeout or HTTP error throws, so callers can tell the two apart and retry later.
 import { surnameOf } from '../util.js';
 import { getJson } from './http.js';
 
@@ -17,7 +20,7 @@ interface Entity {
   labels?: Record<string, { value: string } | undefined>;
 }
 
-/** HTTP 4xx other than 429 (too many requests). */
+/** HTTP 4xx other than 429 (too many requests): Wikidata saying "no such thing". */
 const isClientError = (error: unknown): boolean => error instanceof Error && /^HTTP 4(?!29)\d\d/.test(error.message);
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms); });
@@ -25,29 +28,21 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => { setTimeo
 // Wikidata drops requests under bursts, so calls run one at a time, spaced out, with one retry.
 let queue: Promise<unknown> = Promise.resolve();
 
-function call<T>(params: Record<string, string>): Promise<T> {
+/** Resolves to undefined when Wikidata answers "no such thing" (4xx); throws when it can't be reached. */
+function call<T>(params: Record<string, string>): Promise<T | undefined> {
   const request = { format: 'json', origin: '*', ...params };
   const run = queue.then(async () => {
     try {
       return await getJson<T>(API, request);
     } catch (error) {
-      if (isClientError(error)) throw error; // retrying a 404 can't help
+      if (isClientError(error)) return undefined; // an answer, and asking again can't change it
       await sleep(RETRY_DELAY_MS);
       return getJson<T>(API, request);
     }
   });
   queue = run.catch(() => undefined).then(() => sleep(SPACING_MS));
-  run.catch((error: unknown) => { if (!isClientError(error)) failures++; }); // a 404 is an answer, not an outage
   return run;
 }
-
-let failures = 0;
-
-/**
- * How many Wikidata requests have failed outright (network error, timeout, 5xx, 429) as opposed to getting an answer.
- * Compare before and after a lookup to tell "unknown" from "couldn't ask".
- */
-export const failureCount = (): number => failures;
 
 const valuesOf = (entity: Entity, property: string): unknown[] =>
   (entity.claims?.[property] ?? []).map((c) => c.mainsnak?.datavalue?.value);
@@ -62,14 +57,14 @@ async function getEntity(id: string, props: string): Promise<Entity | undefined>
   const r = await call<{ entities: Record<string, Entity | undefined> }>({
     action: 'wbgetentities', ids: id, props, languages: 'en',
   });
-  return r.entities[id];
+  return r?.entities[id];
 }
 
 async function findArtistId(name: string): Promise<string | null> {
   const r = await call<{ search?: { id: string; description?: string }[] }>({
     action: 'wbsearchentities', search: name, language: 'en', type: 'item', limit: '8',
   });
-  return (r.search ?? []).find((x) => ARTIST_DESCRIPTION.test(x.description ?? ''))?.id ?? null;
+  return (r?.search ?? []).find((x) => ARTIST_DESCRIPTION.test(x.description ?? ''))?.id ?? null;
 }
 
 const demonyms = new Map<string, string>(); // country id -> "French"
@@ -116,23 +111,19 @@ function movementOf(person: Entity): { id: string } | undefined {
   return ordered.map((c) => c.mainsnak?.datavalue?.value).find(isRef);
 }
 
-/** Nationality and art movement for `name`, from Wikidata. Unknown parts are ''. */
+/** Nationality and art movement for `name`, from Wikidata. Unknown parts are ''. Throws if Wikidata can't be reached. */
 export async function artistInfoOf(name: string): Promise<ArtistInfo> {
   const info: ArtistInfo = { nationality: '', movement: '' };
-  try {
-    const personId = await findArtistId(name);
-    if (!personId) return info;
-    const person = await getEntity(personId, 'claims');
-    if (!person) return info;
+  const personId = await findArtistId(name);
+  if (!personId) return info;
+  const person = await getEntity(personId, 'claims');
+  if (!person) return info;
 
-    const country = valuesOf(person, 'P27').find(isRef); // country of citizenship
-    if (country) info.nationality = await demonymOf(country.id);
+  const country = valuesOf(person, 'P27').find(isRef); // country of citizenship
+  if (country) info.nationality = await demonymOf(country.id);
 
-    const movement = movementOf(person);
-    if (movement) info.movement = await movementLabel(movement.id);
-  } catch {
-    /* keep whatever was found so far */
-  }
+  const movement = movementOf(person);
+  if (movement) info.movement = await movementLabel(movement.id);
   return info;
 }
 
@@ -140,30 +131,22 @@ const WORK_DESCRIPTION = /painting|sculpture|drawing|print|etching|lithograph|ph
 
 /**
  * The movement of one artwork, from the artwork's own Wikidata item (more precise than the artist's:
- * Manet's *Olympia* is Realism even though Manet is usually filed under Impressionism). '' if not found.
+ * Manet's *Olympia* is Realism even though Manet is usually filed under Impressionism).
+ * '' if not found; throws if Wikidata can't be reached.
  */
 export async function workMovementOf(title: string, artist: string): Promise<string> {
-  try {
-    const surname = surnameOf(artist);
-    const cleanTitle = title.replace(/\(.*?\)/g, ' ').trim();
-    if (!surname || !cleanTitle) return '';
-    const r = await call<{ search?: { id: string; description?: string }[] }>({
-      action: 'wbsearchentities', search: cleanTitle, language: 'en', type: 'item', limit: '10',
-    });
-    const hit = (r.search ?? []).find((x) => {
-      const description = (x.description ?? '').toLowerCase();
-      return WORK_DESCRIPTION.test(description) && description.includes(surname);
-    });
-    if (!hit) return '';
-    const work = await getEntity(hit.id, 'claims');
-    const movement = work ? movementOf(work) : undefined;
-    return movement ? await movementLabel(movement.id) : '';
-  } catch {
-    return '';
-  }
-}
-
-/** Nationality adjective for `name` (falls back to the country name), or '' if unknown. */
-export async function nationalityOf(name: string): Promise<string> {
-  return (await artistInfoOf(name)).nationality;
+  const surname = surnameOf(artist);
+  const cleanTitle = title.replace(/\(.*?\)/g, ' ').trim();
+  if (!surname || !cleanTitle) return '';
+  const r = await call<{ search?: { id: string; description?: string }[] }>({
+    action: 'wbsearchentities', search: cleanTitle, language: 'en', type: 'item', limit: '10',
+  });
+  const hit = (r?.search ?? []).find((x) => {
+    const description = (x.description ?? '').toLowerCase();
+    return WORK_DESCRIPTION.test(description) && description.includes(surname);
+  });
+  if (!hit) return '';
+  const work = await getEntity(hit.id, 'claims');
+  const movement = work ? movementOf(work) : undefined;
+  return movement ? await movementLabel(movement.id) : '';
 }

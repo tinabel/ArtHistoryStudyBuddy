@@ -124,21 +124,23 @@ src/
     styles.css       styles only
     js/
       app.ts           entry point: event dispatch, view registration
-      ui/              DOM rendering and event handlers (home, editor, study, router, dom helpers)
+      ui/              DOM rendering and event handlers (home, editor, study, editDetails, router, dom helpers)
       quiz.ts          study logic: sources, cards, multiple-choice answers
       store.ts         exam persistence and score keeping (localStorage)
       markdown.ts      pure parsing of markdown and term text
       textMask.ts      pure: hides a term inside its definition
       years.ts         pure: find the year in a date, make plausible wrong dates
-      services/        multi-step workflows: import, image lookup, artist/work info, enrichment, random art
+      services/        multi-step workflows: import, image lookup, work info (nationality, movement), random art
       api/             one client per data source: Met, Wikimedia Commons, Wikipedia, Wikidata
-      data/            static data
+      data/            fallback quiz answers (famous artists, titles, movements)
       types.ts, util.ts
 test/              Jest tests (unit, plus jsdom UI tests)
 build/             compiled output (git-ignored)
 ```
 
 Dependencies point one way: `ui` → `quiz` / `store` / `services` → `api`. Only `ui` touches the DOM and only `store` touches `localStorage`.
+
+Lookup failures follow one rule: the Wikidata client (`api/wikidata.ts`) returns `''` for "not on Wikidata" and throws when it can't be reached; `services/workInfo.ts` turns a throw into `null`. Nothing saves a `null` result, so the next study session asks again.
 
 ## Data sources
 

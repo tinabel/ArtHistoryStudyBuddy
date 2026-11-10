@@ -1,9 +1,11 @@
 import { findImage } from '../src/renderer/js/api/commons.js';
 import { getJson } from '../src/renderer/js/api/http.js';
 import * as met from '../src/renderer/js/api/met.js';
-import { artistInfoOf, nationalityOf, workMovementOf } from '../src/renderer/js/api/wikidata.js';
+import { artistInfoOf, workMovementOf } from '../src/renderer/js/api/wikidata.js';
 import { define } from '../src/renderer/js/api/wikipedia.js';
 import { restoreFetch, stubFetch } from './helpers/fakeFetch.js';
+
+const nationalityOf = async (name: string): Promise<string> => (await artistInfoOf(name)).nationality;
 
 afterEach(restoreFetch);
 
@@ -189,14 +191,14 @@ describe('Wikidata', () => {
     expect(await nationalityOf('Nobody')).toBe('');
   });
 
-  it('retries a failed request once, then gives up quietly', async () => {
+  it('retries a failed request once, then throws so callers can tell "unknown" from "could not ask"', async () => {
     let attempts = 0;
     stubFetch([['wbsearchentities', () => (++attempts === 1 ? new Error('burst') : { search: [] })]]);
     expect(await nationalityOf('Retry Me')).toBe('');
     expect(attempts).toBe(2);
 
     stubFetch([['wbsearchentities', new Error('down')]]);
-    expect(await nationalityOf('Always Down')).toBe('');
+    await expect(nationalityOf('Always Down')).rejects.toThrow('HTTP 500');
   });
 });
 
@@ -249,12 +251,12 @@ describe('Wikidata artist info (movement)', () => {
     expect(await nationalityOf('Info Painter H')).toBe('Testland');
   });
 
-  it('keeps the nationality when the movement lookup fails', async () => {
+  it('throws when the movement lookup fails, rather than passing off a partial answer as complete', async () => {
     stubFetch([
       ...artistWith({ person: 'Q3009', country: 'Q3104', movements: [{ id: 'Q3211', label: 'realism' }] }).filter(([m]) => !String(m).includes('Q3211')),
       [/ids=Q3211\b/, new Error('down')],
     ]);
-    expect(await artistInfoOf('Info Painter I')).toEqual({ nationality: 'Testland', movement: '' });
+    await expect(artistInfoOf('Info Painter I')).rejects.toThrow('HTTP 500');
   });
 
   it('returns empty info for an unknown artist', async () => {
@@ -292,11 +294,11 @@ describe('Wikidata work movement', () => {
     expect(calls.some((c) => /ids=Q400[34]/.test(c))).toBe(false);
   });
 
-  it('returns "" when the artwork has no movement, or the search fails', async () => {
+  it('returns "" when the artwork has no movement or the input is empty, and throws when the search fails', async () => {
     stubFetch(workRoutes({ search: [{ id: 'Q4005', description: 'painting by Edgar Degas' }], entity: { id: 'Q4005' } }));
     expect(await workMovementOf('Some Dancers', 'Edgar Degas')).toBe('');
     stubFetch([['wbsearchentities', new Error('down')]]);
-    expect(await workMovementOf('Some Dancers', 'Edgar Degas')).toBe('');
+    await expect(workMovementOf('Some Dancers', 'Edgar Degas')).rejects.toThrow('HTTP 500');
     expect(await workMovementOf('', 'Edgar Degas')).toBe('');
     expect(await workMovementOf('Some Dancers', '')).toBe('');
   });
@@ -336,7 +338,7 @@ describe('Wikidata request retries', () => {
     expect(missing.filter((c) => c.includes('wbsearchentities'))).toHaveLength(1);
 
     const broken = stubFetch([['wbsearchentities', new Error('server error')]]);
-    expect(await nationalityOf('Five Hundred')).toBe('');
+    await expect(nationalityOf('Five Hundred')).rejects.toThrow('HTTP 500');
     expect(broken.filter((c) => c.includes('wbsearchentities'))).toHaveLength(2);
   });
 });

@@ -13,6 +13,12 @@ export interface Work {
   src?: string;
 }
 
+/** A picture and the page it came from ('' when there is none). */
+export interface WorkImage {
+  img: string;
+  src: string;
+}
+
 export interface Term {
   term: string;
   /** May be empty (flashcard-only term). */
