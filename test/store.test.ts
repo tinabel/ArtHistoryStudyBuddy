@@ -117,3 +117,46 @@ describe('scores', () => {
     expect(store.overallStats(b)).toEqual({ c: 1, t: 1 });
   });
 });
+
+describe('classes', () => {
+  it('keeps classes in order and saves them, including one with no exams', async () => {
+    const data = installStorage();
+    const store = await freshStore();
+    expect(store.addCourse(' Art History 200 ')).toBe(true);
+    expect(store.addCourse('Art History 101')).toBe(true);
+    expect(store.addCourse('Art History 101')).toBe(false);
+    expect(store.addCourse('')).toBe(false);
+    expect(store.getCourses()).toEqual(['Art History 101', 'Art History 200']);
+    expect(JSON.parse(data.get('courses') ?? '')).toEqual(['Art History 101', 'Art History 200']);
+    expect((await freshStore()).getCourses()).toEqual(['Art History 101', 'Art History 200']);
+  });
+
+  it('remembers which class an exam is in, and recovers a class named only by an exam', async () => {
+    const data = installStorage();
+    const store = await freshStore();
+    store.addExam(store.makeExam({ name: 'Midterm', course: 'Art History 101' }));
+    expect(store.getCourses()).toEqual(['Art History 101']);
+    data.delete('courses');
+    const reloaded = await freshStore();
+    expect(reloaded.getExams()[0]?.course).toBe('Art History 101');
+    expect(reloaded.getCourses()).toEqual(['Art History 101']);
+  });
+
+  it('moves an exam between classes; removing a class keeps its exams', async () => {
+    const store = await freshStore();
+    store.addExam(store.makeExam({ name: 'Midterm' }));
+    expect(store.getExams()[0]).not.toHaveProperty('course'); // exams outside a class look as they always did
+    store.setExamCourse(0, 'Art History 400');
+    expect(store.getExams()[0]?.course).toBe('Art History 400');
+    expect(store.getCourses()).toEqual(['Art History 400']);
+    store.removeCourse('Art History 400');
+    expect(store.getCourses()).toEqual([]);
+    expect(store.getExams()).toHaveLength(1);
+    expect(store.getExams()[0]).not.toHaveProperty('course');
+  });
+
+  it('ignores unreadable saved classes', async () => {
+    installStorage().set('courses', '{not json');
+    expect((await freshStore()).getCourses()).toEqual([]);
+  });
+});

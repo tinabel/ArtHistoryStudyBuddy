@@ -15,12 +15,17 @@
   <h2>My Exams</h2>
   <div id="examList"></div>
   <button type="button" data-action="home.new">+ Add Exam</button>
+  <div class="field-row block">
+    <input type="text" id="newCourse" class="grow" aria-label="New class name" placeholder="New class (e.g. Art History 101)" data-enter="home.addCourse">
+    <button type="button" class="secondary" data-action="home.addCourse">+ Add Class</button>
+  </div>
 </section>
 
 <!-- Exam editor -->
 <section id="editor" class="panel" hidden>
   <h2>New Exam</h2>
   <input type="text" id="exName" class="wide" aria-label="Exam name" placeholder="Exam name (e.g. Renaissance Midterm)">
+  <select id="exCourse" class="wide" aria-label="Class" hidden></select>
 
   <div class="block">
     <div class="field-row">
