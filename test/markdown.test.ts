@@ -53,15 +53,15 @@ describe('parseWork movement', () => {
 
 describe('parseTermLine', () => {
   it('accepts colon, spaced dash, or a bare term', () => {
-    expect(parseTermLine('Sfumato: soft blending')).toEqual({ term: 'Sfumato', def: 'soft blending' });
-    expect(parseTermLine('Contrapposto - weight on one leg')).toEqual({ term: 'Contrapposto', def: 'weight on one leg' });
-    expect(parseTermLine('Orientalism')).toEqual({ term: 'Orientalism', def: '' });
+    expect(parseTermLine('Sfumato: soft blending')).toEqual({ term: 'Sfumato', definition: 'soft blending' });
+    expect(parseTermLine('Contrapposto - weight on one leg')).toEqual({ term: 'Contrapposto', definition: 'weight on one leg' });
+    expect(parseTermLine('Orientalism')).toEqual({ term: 'Orientalism', definition: '' });
   });
 
   it('only splits on the first separator and ignores unspaced hyphens and commas', () => {
-    expect(parseTermLine('Term: def: more')).toEqual({ term: 'Term', def: 'def: more' });
-    expect(parseTermLine('Neo-Impressionism/Pointillism')).toEqual({ term: 'Neo-Impressionism/Pointillism', def: '' });
-    expect(parseTermLine('Salon De Refuses, 1863')).toEqual({ term: 'Salon De Refuses, 1863', def: '' });
+    expect(parseTermLine('Term: definition: more')).toEqual({ term: 'Term', definition: 'definition: more' });
+    expect(parseTermLine('Neo-Impressionism/Pointillism')).toEqual({ term: 'Neo-Impressionism/Pointillism', definition: '' });
+    expect(parseTermLine('Salon De Refuses, 1863')).toEqual({ term: 'Salon De Refuses, 1863', definition: '' });
   });
 });
 
@@ -82,13 +82,13 @@ describe('parseExamMarkdown', () => {
     const parsed = parseExamMarkdown(markdown);
     expect(parsed.title).toBe('Renaissance Midterm');
     expect(parsed.works.map((work) => work.title)).toEqual(['Mona Lisa', 'School of Athens']);
-    expect(parsed.terms).toEqual([{ term: 'Sfumato', def: 'soft blending' }, { term: 'Chiaroscuro', def: '' }]);
+    expect(parsed.terms).toEqual([{ term: 'Sfumato', definition: 'soft blending' }, { term: 'Chiaroscuro', definition: '' }]);
   });
 
   it('ignores bullets outside a known section; only the first H1 is the title', () => {
     const parsed = parseExamMarkdown('- stray bullet\n# First\n# Second\n## Must Know Terms\n- A: b');
     expect(parsed.title).toBe('First');
-    expect(parsed.terms).toEqual([{ term: 'A', def: 'b' }]);
+    expect(parsed.terms).toEqual([{ term: 'A', definition: 'b' }]);
     expect(parsed.works).toEqual([]);
   });
 
@@ -101,9 +101,9 @@ describe('term lines (editor textarea format)', () => {
   it('parses and round-trips', () => {
     const terms = parseTermLines('a: b\n\n  c  \nd: e: f');
     expect(terms).toEqual([
-      { term: 'a', def: 'b' },
-      { term: 'c', def: '' },
-      { term: 'd', def: 'e: f' },
+      { term: 'a', definition: 'b' },
+      { term: 'c', definition: '' },
+      { term: 'd', definition: 'e: f' },
     ]);
     expect(formatTermLines(terms)).toBe('a: b\nc: \nd: e: f');
   });

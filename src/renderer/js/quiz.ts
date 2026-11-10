@@ -46,7 +46,7 @@ async function drawWork(exam: Exam, kind: 'works' | 'pool'): Promise<Work | null
 }
 
 /** The facts a quiz can ask about this work (a title question needs the image: otherwise the title is shown). */
-export function availableQuestions(work: Work, hasImage = Boolean(work.img)): Question[] {
+export function availableQuestions(work: Work, hasImage = Boolean(work.image)): Question[] {
   const questions: Question[] = [];
   if (work.artist) questions.push('artist');
   if (hasImage && work.title) questions.push('title');
@@ -73,11 +73,11 @@ export async function drawCard(exam: Exam, kind: Kind, mode: Mode): Promise<Card
   const quiz = mode === 'quiz';
 
   if (kind === 'terms') {
-    const pool = quiz ? exam.terms.filter((candidate) => candidate.def) : exam.terms;
+    const pool = quiz ? exam.terms.filter((candidate) => candidate.definition) : exam.terms;
     if (!pool.length) return { error: 'No terms with definitions for quiz mode.' };
     const term = pick(pool);
     return {
-      kind, term: term.term, def: quiz ? maskTerm(term.def, term.term) : term.def, src: term.src, answer: term.term,
+      kind, term: term.term, definition: quiz ? maskTerm(term.definition, term.term) : term.definition, source: term.source, answer: term.term,
       choices: quiz ? withDistractors(term.term, exam.terms.map((other) => other.term)) : null,
     };
   }
@@ -90,7 +90,7 @@ export async function drawCard(exam: Exam, kind: Kind, mode: Mode): Promise<Card
   const question: Question = questions.length ? pick(questions) : 'artist';
   return {
     kind, question, id: work.id, title: work.title, artist: work.artist, nationality: work.nationality,
-    movement: work.movement, date: work.date, img: work.img, src: work.src,
+    movement: work.movement, date: work.date, image: work.image, source: work.source,
     answer: answerFor(question, work),
     choices: questions.length ? choicesFor(question, work, exam) : null,
   };

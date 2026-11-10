@@ -33,16 +33,16 @@ const SCHEMA = `
     nationality TEXT,             -- NULL = not looked up yet; '' = looked up, unknown
     movement    TEXT,             -- same
     date        TEXT NOT NULL,
-    img         TEXT NOT NULL,    -- an https: address or a data: image
-    src         TEXT,
+    image       TEXT NOT NULL,    -- an https: address or a data: image
+    source      TEXT,             -- the web page it came from
     PRIMARY KEY (exam_id, position)
   );
   CREATE TABLE IF NOT EXISTS terms (
-    exam_id  INTEGER NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    term     TEXT NOT NULL,
-    def      TEXT NOT NULL,
-    src      TEXT,
+    exam_id    INTEGER NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL,
+    term       TEXT NOT NULL,
+    definition TEXT NOT NULL,
+    source     TEXT,
     PRIMARY KEY (exam_id, position)
   );
 `;
@@ -121,14 +121,14 @@ const toWork = (row: Row): Work => ({
   nationality: orUndefined(row.nationality),
   movement: orUndefined(row.movement),
   date: text(row.date, 'Date'),
-  img: text(row.img, 'Image'),
-  src: orUndefined(row.src),
+  image: text(row.image, 'Image'),
+  source: orUndefined(row.source),
 });
 
 const toTerm = (row: Row): Term => ({
   term: text(row.term, 'Term'),
-  def: text(row.def, 'Definition'),
-  src: orUndefined(row.src),
+  definition: text(row.definition, 'Definition'),
+  source: orUndefined(row.source),
 });
 
 /** Opens (creating if needed) the database in `file`. Pass ':memory:' for a throwaway one. */
@@ -161,9 +161,9 @@ export function openDatabase(file: string): Database {
 
     const addCourse = sqlite.prepare('INSERT INTO courses (position, name) VALUES (?, ?)');
     const addExam = sqlite.prepare('INSERT INTO exams (id, name, course, filter, stats) VALUES (?, ?, ?, ?, ?)');
-    const addWork = sqlite.prepare(`INSERT INTO works (exam_id, position, work_id, title, artist, nationality, movement, date, img, src)
+    const addWork = sqlite.prepare(`INSERT INTO works (exam_id, position, work_id, title, artist, nationality, movement, date, image, source)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    const addTerm = sqlite.prepare('INSERT INTO terms (exam_id, position, term, def, src) VALUES (?, ?, ?, ?, ?)');
+    const addTerm = sqlite.prepare('INSERT INTO terms (exam_id, position, term, definition, source) VALUES (?, ?, ?, ?, ?)');
 
     data.courses.forEach((name, position) => addCourse.run(position, text(name, 'Class name')));
 
@@ -176,10 +176,10 @@ export function openDatabase(file: string): Database {
       exam.works.forEach((work, position) => addWork.run(
         examId, position, workId(work.id), text(work.title, 'Title'), text(work.artist, 'Artist'),
         optionalText(work.nationality, 'Nationality'), optionalText(work.movement, 'Movement'),
-        text(work.date, 'Date'), text(work.img, 'Image'), optionalText(work.src, 'Source'),
+        text(work.date, 'Date'), text(work.image, 'Image'), optionalText(work.source, 'Source'),
       ));
       exam.terms.forEach((term, position) => addTerm.run(
-        examId, position, text(term.term, 'Term'), text(term.def, 'Definition'), optionalText(term.src, 'Source'),
+        examId, position, text(term.term, 'Term'), text(term.definition, 'Definition'), optionalText(term.source, 'Source'),
       ));
     });
     sqlite.exec(`PRAGMA user_version = ${SAVED_VERSION}`); // a constant, not user input

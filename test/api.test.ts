@@ -30,7 +30,7 @@ describe('Met API', () => {
 
   it('toWork maps a Met object to the app shape', () => {
     expect(met.toWork(metObject(5))).toEqual({
-      id: 5, title: 'T5', artist: 'Artist', nationality: 'French', date: '1800', img: 'img5.jpg', src: 'https://met/5',
+      id: 5, title: 'T5', artist: 'Artist', nationality: 'French', date: '1800', image: 'img5.jpg', source: 'https://met/5',
     });
     expect(met.toWork(metObject(6, { artistNationality: undefined })).nationality).toBe('');
   });
@@ -107,14 +107,14 @@ describe('Wikimedia Commons', () => {
 
   it('prefers a file whose name contains the surname', async () => {
     stubFetch([['commons.wikimedia.org', { query: { pages: { a: page(1, 'File:Other.jpg'), b: page(2, 'File:Ingres Odalisque.jpg') } } }]]);
-    expect(await findImage('Odalisque ingres', 'ingres')).toEqual({ img: 'thumb-2', src: 'desc-2' });
+    expect(await findImage('Odalisque ingres', 'ingres')).toEqual({ image: 'thumb-2', source: 'desc-2' });
   });
 
   it('falls back to the top result, and skips non-photo files', async () => {
     stubFetch([['commons.wikimedia.org', { query: { pages: {
       a: page(1, 'File:Diagram.svg'), b: page(2, 'File:First.jpeg'), c: page(3, 'File:Second.png'), d: page(4, 'File:NoInfo.jpg', false),
     } } }]]);
-    expect(await findImage('x', '')).toEqual({ img: 'thumb-2', src: 'desc-2' });
+    expect(await findImage('x', '')).toEqual({ image: 'thumb-2', source: 'desc-2' });
   });
 
   it('returns null on no results or errors', async () => {
@@ -132,8 +132,8 @@ describe('Wikipedia', () => {
       ['list=search', { query: { search: [{ title: 'Salon des Refusés' }] } }],
     ]);
     expect(await define('Salon De Refuses, 1863')).toEqual({
-      def: 'One fact. Two facts!',
-      src: 'https://en.wikipedia.org/wiki/Salon_des_Refus%C3%A9s',
+      definition: 'One fact. Two facts!',
+      source: 'https://en.wikipedia.org/wiki/Salon_des_Refus%C3%A9s',
     });
     expect(calls[0]).toContain('srsearch=Salon+De+Refuses+art+history'); // trailing ", 1863" removed
   });
@@ -143,14 +143,14 @@ describe('Wikipedia', () => {
       ['rest_v1/page/summary', { extract: `${'x'.repeat(600)}.` }],
       ['list=search', { query: { search: [{ title: 'T' }] } }],
     ]);
-    expect((await define('T')).def).toHaveLength(320);
+    expect((await define('T')).definition).toHaveLength(320);
   });
 
   it('returns empty strings when nothing is found or the request fails', async () => {
     stubFetch([['list=search', { query: { search: [] } }]]);
-    expect(await define('zzz')).toEqual({ def: '', src: '' });
+    expect(await define('zzz')).toEqual({ definition: '', source: '' });
     stubFetch([['list=search', new Error('x')]]);
-    expect(await define('zzz')).toEqual({ def: '', src: '' });
+    expect(await define('zzz')).toEqual({ definition: '', source: '' });
   });
 });
 

@@ -67,7 +67,7 @@ describe('exams from before the database (localStorage)', () => {
       { name: 'F', type: 'filter', deptId: '11', deptName: 'Paintings', from: '1400', to: '1600', q: 'portrait' },
     ]) });
     const [list, filter] = (await freshStore()).getExams();
-    expect(list).toEqual({ name: 'L', works: [{ id: 1, title: 'T', artist: '', date: '', img: '' }], terms: [], filter: null, stats: {} });
+    expect(list).toEqual({ name: 'L', works: [{ id: 1, title: 'T', artist: '', date: '', image: '' }], terms: [], filter: null, stats: {} });
     expect(filter?.filter).toEqual({ deptId: '11', deptName: 'Paintings', from: '1400', to: '1600', q: 'portrait' });
     expect(filter?.works).toEqual([]);
   });
@@ -75,6 +75,17 @@ describe('exams from before the database (localStorage)', () => {
   it('have scores that are not whole numbers replaced by 0', async () => {
     install({ legacy: JSON.stringify([{ name: 'X', stats: { works: { c: '<img src=x>', t: -2 }, terms: { c: 1, t: 2.5 } } }]) });
     expect((await freshStore()).getExams()[0]?.stats).toEqual({ works: { correct: 0, total: 0 }, terms: { correct: 1, total: 0 } });
+  });
+
+  it('have their short field names (img, src, def) converted to full words', async () => {
+    install({ legacy: JSON.stringify([{
+      name: 'Old',
+      works: [{ id: 7, title: 'Olympia', artist: 'Manet', date: '1863', img: 'https://images/olympia.jpg', src: 'https://commons/olympia' }],
+      terms: [{ term: 'Sublime', def: 'awe', src: 'https://en.wikipedia.org/wiki/Sublime' }],
+    }]) });
+    const [exam] = (await freshStore()).getExams();
+    expect(exam?.works[0]).toEqual({ id: 7, title: 'Olympia', artist: 'Manet', date: '1863', image: 'https://images/olympia.jpg', source: 'https://commons/olympia' });
+    expect(exam?.terms[0]).toEqual({ term: 'Sublime', definition: 'awe', source: 'https://en.wikipedia.org/wiki/Sublime' });
   });
 
   it('get default stats when they lack them', async () => {
@@ -87,7 +98,7 @@ describe('saving', () => {
   it('addExam saves, and puts the list back if saving fails', async () => {
     const database = install();
     const store = await freshStore();
-    store.addExam(store.makeExam({ name: 'Midterm', terms: [{ term: 'a', def: 'b', src: '' }] }));
+    store.addExam(store.makeExam({ name: 'Midterm', terms: [{ term: 'a', definition: 'b', source: '' }] }));
     expect(database.saved?.exams).toHaveLength(1);
     expect(database.saved?.exams[0]).toMatchObject({ name: 'Midterm', works: [] });
 
@@ -109,7 +120,7 @@ describe('saving', () => {
   it('saveExams saves in-place edits', async () => {
     const database = install();
     const store = await freshStore();
-    const exam = store.makeExam({ name: 'A', works: [{ id: 1, title: 'T', artist: 'X', date: '', img: '' }] });
+    const exam = store.makeExam({ name: 'A', works: [{ id: 1, title: 'T', artist: 'X', date: '', image: '' }] });
     store.addExam(exam);
     exam.works[0]!.nationality = 'French';
     expect(database.saved?.exams[0]?.works[0]?.nationality).toBeUndefined(); // not until asked

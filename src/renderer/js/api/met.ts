@@ -61,8 +61,8 @@ export const toWork = (metObject: MetObject): Work => ({
   artist: metObject.artistDisplayName,
   nationality: metObject.artistNationality ?? '',
   date: metObject.objectDate,
-  img: metObject.primaryImageSmall,
-  src: metObject.objectURL,
+  image: metObject.primaryImageSmall,
+  source: metObject.objectURL,
 });
 
 /** Free-text search; returns up to `limit` works that have an image. */
