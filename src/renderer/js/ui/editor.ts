@@ -10,7 +10,9 @@ import { go } from './router.js';
 
 // Draft state for the exam being built
 let works: Work[] = [];
-let termSources: Record<string, string> = {}; // term -> source URL (for auto-filled definitions)
+// term -> source URL (for auto-filled definitions). A Map, not a plain object: a term can be called anything,
+// and looking up "constructor" in a plain object finds a built-in function instead of nothing.
+const termSources = new Map<string, string>();
 let searchResults: Work[] = [];
 let departmentsLoaded = false;
 
@@ -62,7 +64,7 @@ export function open(course = ''): void {
   courseSelect().value = course;
   courseSelect().hidden = !courses.length;
   works = [];
-  termSources = {};
+  termSources.clear();
   searchResults = [];
   for (const id of ['exName', 'exFrom', 'exTo', 'exQ', 'searchQ', 'mdPath']) input(id).value = '';
   termsBox().value = '';
@@ -107,7 +109,7 @@ async function importFile(path: string): Promise<void> {
   const imported = await importExam(text, say);
   if (!input('exName').value) input('exName').value = imported.title;
 
-  for (const term of imported.terms) if (term.src) termSources[term.term] = term.src;
+  for (const term of imported.terms) if (term.src) termSources.set(term.term, term.src);
   const terms = termsBox();
   const existing = terms.value.trim();
   const lines = formatTermLines(imported.terms);
@@ -135,7 +137,7 @@ function save(): void {
   const name = input('exName').value.trim();
   if (!name) { say('Name required.'); return; }
 
-  const terms = parseTermLines(termsBox().value).map((term) => ({ ...term, src: termSources[term.term] ?? '' }));
+  const terms = parseTermLines(termsBox().value).map((term) => ({ ...term, src: termSources.get(term.term) ?? '' }));
   const result = readFilter();
   if ('error' in result) { say(result.error); return; }
   if (!works.length && !terms.length && !result.filter) { say('Add works, terms, or a random pool.'); return; }

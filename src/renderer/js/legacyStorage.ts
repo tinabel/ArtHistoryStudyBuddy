@@ -31,9 +31,12 @@ const completeWork = (work: Partial<Work>): Work =>
 
 const completeTerm = (term: Partial<Term>): Term => ({ ...term, term: term.term ?? '', def: term.def ?? '' });
 
+/** Old data is not trusted to hold numbers: anything else counts as 0. */
+const toCount = (value: unknown): number => (typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 0);
+
 function upgradeStats(saved: SavedExam['stats'] = {}): Exam['stats'] {
   const stats: Exam['stats'] = {};
-  for (const [kind, score] of Object.entries(saved)) stats[kind as Kind] = { correct: score.c, total: score.t };
+  for (const [kind, score] of Object.entries(saved)) stats[kind as Kind] = { correct: toCount(score.c), total: toCount(score.t) };
   return stats;
 }
 

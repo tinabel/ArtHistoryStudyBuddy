@@ -972,3 +972,32 @@ describe('navigation and scoring', () => {
     expect(saved[0]?.stats).toEqual({ terms: { correct: 1, total: 1 } });
   });
 });
+
+describe('untrusted text', () => {
+  it('treats terms named like JavaScript built-ins as ordinary terms', () => {
+    click(act('home.new'));
+    setValue('#exName', 'Built-ins');
+    setValue('#exTerms', 'constructor: one who builds\ntoString\n__proto__: a prototype');
+    click(act('editor.save'));
+    expect(view()).toBe('home');
+    expect(savedExams()[0]?.terms).toEqual([
+      { term: 'constructor', def: 'one who builds', src: '' },
+      { term: 'toString', def: '', src: '' },
+      { term: '__proto__', def: 'a prototype', src: '' },
+    ]);
+  });
+
+  it('shows markup in names as text, never as HTML', () => {
+    seed({ name: '<img src=x onerror=alert(1)>', course: '<script>alert(2)</script>' });
+    expect(all('#examList img, #examList script')).toHaveLength(0);
+    expect(text('#examList')).toContain('<img src=x onerror=alert(1)>');
+    expect(text('#examList')).toContain('<script>alert(2)</script>');
+  });
+
+  it('only links to sources that are https addresses', async () => {
+    seed({ works: [], terms: [{ term: 'Sublime', def: 'awe', src: 'javascript:alert(1)' }] });
+    await study('terms', 'flash');
+    click(act('study.reveal'));
+    expect(all('#card a')).toHaveLength(0);
+  });
+});
