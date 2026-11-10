@@ -67,7 +67,7 @@ describe('parseTermLine', () => {
 
 describe('parseExamMarkdown', () => {
   it('reads the title, sections (any case) and numbered lists', () => {
-    const md = [
+    const markdown = [
       '# Renaissance Midterm', '',
       '## MUST KNOW WORKS', '',
       '- Leonardo, Mona Lisa, 1503 (p. 1)',
@@ -79,9 +79,9 @@ describe('parseExamMarkdown', () => {
       '',
       '## Notes', '- not a term and not a work',
     ].join('\n');
-    const parsed = parseExamMarkdown(md);
+    const parsed = parseExamMarkdown(markdown);
     expect(parsed.title).toBe('Renaissance Midterm');
-    expect(parsed.works.map((w) => w.title)).toEqual(['Mona Lisa', 'School of Athens']);
+    expect(parsed.works.map((work) => work.title)).toEqual(['Mona Lisa', 'School of Athens']);
     expect(parsed.terms).toEqual([{ term: 'Sfumato', def: 'soft blending' }, { term: 'Chiaroscuro', def: '' }]);
   });
 

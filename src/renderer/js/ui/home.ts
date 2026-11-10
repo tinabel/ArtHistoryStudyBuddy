@@ -2,13 +2,13 @@
 import { addCourse, getCourses, getExams, overallStats, removeCourse, removeExam, resetStats, setExamCourse } from '../store.js';
 import type { Exam } from '../types.js';
 import { indexOf, type ActionMap } from './actions.js';
-import { $, esc, field } from './dom.js';
+import { byId, escapeHtml, field } from './dom.js';
 import * as editor from './editor.js';
 import * as study from './study.js';
 
 function scoreSuffix(exam: Exam): string {
-  const { c, t } = overallStats(exam);
-  return t ? ` · ${Math.round(100 * c / t)}% (${c}/${t})` : '';
+  const { correct, total } = overallStats(exam);
+  return total ? ` · ${Math.round(100 * correct / total)}% (${correct}/${total})` : '';
 }
 
 /** Dropdown that moves an exam to another class. Nothing to choose from until a class exists. */
@@ -16,7 +16,7 @@ function courseSelect(exam: Exam, index: number): string {
   const courses = getCourses();
   if (!courses.length) return '';
   const option = (value: string, label: string): string =>
-    `<option value="${esc(value)}"${value === (exam.course ?? '') ? ' selected' : ''}>${esc(label)}</option>`;
+    `<option value="${escapeHtml(value)}"${value === (exam.course ?? '') ? ' selected' : ''}>${escapeHtml(label)}</option>`;
   return `<select aria-label="Class" title="Move to another class" data-change="home.setCourse" data-i="${index}">
     ${option('', 'No class')}${courses.map((name) => option(name, name)).join('')}
   </select>`;
@@ -26,7 +26,7 @@ function courseSelect(exam: Exam, index: number): string {
 const examRow = (exam: Exam, index: number): string => `
   <div class="row">
     <div>
-      <strong>${esc(exam.name)}</strong><br>
+      <strong>${escapeHtml(exam.name)}</strong><br>
       <span class="small">${exam.works.length} works · ${exam.terms.length} terms${exam.filter ? ' · random pool' : ''}${scoreSuffix(exam)}</span>
     </div>
     <div>
@@ -44,10 +44,10 @@ const examRows = (course: string): string =>
 const courseSection = (name: string): string => `
   <section class="course">
     <div class="course-head">
-      <h3>${esc(name)}</h3>
+      <h3>${escapeHtml(name)}</h3>
       <div>
-        <button type="button" class="secondary" data-action="home.new" data-course="${esc(name)}">+ Add Exam</button>
-        <button type="button" class="danger" title="Remove class (its exams are kept)" data-action="home.removeCourse" data-course="${esc(name)}">✕</button>
+        <button type="button" class="secondary" data-action="home.new" data-course="${escapeHtml(name)}">+ Add Exam</button>
+        <button type="button" class="danger" title="Remove class (its exams are kept)" data-action="home.removeCourse" data-course="${escapeHtml(name)}">✕</button>
       </div>
     </div>
     ${examRows(name) || '<div class="small">No exams in this class yet.</div>'}
@@ -58,22 +58,22 @@ export function render(): void {
   const unassigned = examRows('');
   let html = courses.map(courseSection).join('');
   if (unassigned) html += courses.length ? `<section class="course"><h3>No class</h3>${unassigned}</section>` : unassigned;
-  $('examList').innerHTML = html || '<div class="small">No exams yet. Add one.</div>';
+  byId('examList').innerHTML = html || '<div class="small">No exams yet. Add one.</div>';
 }
 
 export const actions: ActionMap = {
-  'home.new': (el) => { editor.open(el.dataset.course ?? ''); },
-  'home.study': (el) => {
-    const exam = getExams()[indexOf(el)];
+  'home.new': (element) => { editor.open(element.dataset.course ?? ''); },
+  'home.study': (element) => {
+    const exam = getExams()[indexOf(element)];
     if (exam) study.start(exam);
   },
-  'home.reset': (el) => { resetStats(indexOf(el)); render(); },
-  'home.delete': (el) => { removeExam(indexOf(el)); render(); },
+  'home.reset': (element) => { resetStats(indexOf(element)); render(); },
+  'home.delete': (element) => { removeExam(indexOf(element)); render(); },
   'home.addCourse': () => {
     const input = field('newCourse', HTMLInputElement);
     if (addCourse(input.value)) input.value = '';
     render();
   },
-  'home.removeCourse': (el) => { removeCourse(el.dataset.course ?? ''); render(); },
-  'home.setCourse': (el) => { setExamCourse(indexOf(el), (el as HTMLSelectElement).value); render(); },
+  'home.removeCourse': (element) => { removeCourse(element.dataset.course ?? ''); render(); },
+  'home.setCourse': (element) => { setExamCourse(indexOf(element), (element as HTMLSelectElement).value); render(); },
 };

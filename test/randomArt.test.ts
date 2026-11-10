@@ -16,33 +16,33 @@ function metWith(total: number, pageIds: number[], objects: Record<number, unkno
     ['/search', (url: string) => ({ total, objectIDs: url.includes('limit=1&') ? pageIds.slice(0, 1) : pageIds })],
   ];
 }
-const searches = (calls: string[]): string[] => calls.filter((c) => c.includes('/search'));
+const searches = (calls: string[]): string[] => calls.filter((call) => call.includes('/search'));
 const offsetOf = (url: string): number => Number(/offset=(\d+)/.exec(url)?.[1]);
 
 describe('pickRandomWork', () => {
   it('asks for the number of matches once, then reads a random page', async () => {
     const calls = stubFetch(metWith(500, [1, 2, 3], { 1: object(1), 2: object(2), 3: object(3) }));
-    const f = filter('random-total');
-    for (let i = 0; i < 5; i++) expect(await pickRandomWork(f)).not.toBeNull();
+    const randomFilter = filter('random-total');
+    for (let round = 0; round < 5; round++) expect(await pickRandomWork(randomFilter)).not.toBeNull();
 
     const all = searches(calls);
-    expect(all.filter((c) => c.includes('limit=1&'))).toHaveLength(1); // the total is remembered
-    const pages = all.filter((c) => c.includes('limit=20&'));
+    expect(all.filter((call) => call.includes('limit=1&'))).toHaveLength(1); // the total is remembered
+    const pages = all.filter((call) => call.includes('limit=20&'));
     expect(pages).toHaveLength(5);
     for (const page of pages) expect(offsetOf(page)).toBeLessThan(500);
   });
 
   it('spreads picks across the results instead of always taking the first page', async () => {
     const calls = stubFetch(metWith(500, [1], { 1: object(1) }));
-    for (let i = 0; i < 25; i++) await pickRandomWork(filter('random-spread'));
-    const offsets = new Set(searches(calls).filter((c) => c.includes('limit=20&')).map(offsetOf));
+    for (let round = 0; round < 25; round++) await pickRandomWork(filter('random-spread'));
+    const offsets = new Set(searches(calls).filter((call) => call.includes('limit=20&')).map(offsetOf));
     expect(offsets.size).toBeGreaterThan(5);
   });
 
   it('stays within the part of the results the search service will page through', async () => {
     const calls = stubFetch(metWith(51_583, [1], { 1: object(1) }));
-    for (let i = 0; i < 30; i++) await pickRandomWork(filter('random-deep'));
-    for (const page of searches(calls).filter((c) => c.includes('limit=20&'))) expect(offsetOf(page)).toBeLessThan(9000);
+    for (let round = 0; round < 30; round++) await pickRandomWork(filter('random-deep'));
+    for (const page of searches(calls).filter((call) => call.includes('limit=20&'))) expect(offsetOf(page)).toBeLessThan(9000);
   });
 
   it('passes the exam filter on to the search', async () => {
@@ -69,7 +69,7 @@ describe('pickRandomWork', () => {
   it('skips objects without an image or an artist, and gives up after a few tries', async () => {
     const calls = stubFetch(metWith(100, [1, 2], { 1: object(1, { primaryImageSmall: '' }), 2: object(2, { artistDisplayName: '' }) }));
     expect(await pickRandomWork(filter('random-bad'))).toBeNull();
-    expect(searches(calls).filter((c) => c.includes('limit=20&')).length).toBeLessThanOrEqual(8);
+    expect(searches(calls).filter((call) => call.includes('limit=20&')).length).toBeLessThanOrEqual(8);
   });
 
   it('propagates a failing search so the caller can say the Met is unreachable', async () => {

@@ -55,7 +55,7 @@ describe('lookupWorkInfo', () => {
     await lookupWorkInfo({ artist: 'Cached Painter', title: 'First Work' });
     expect(calls).toHaveLength(afterFirst);
     await lookupWorkInfo({ artist: 'Cached Painter', title: 'Second Work' });
-    expect(calls.filter((c) => c.includes('search=Cached+Painter&'))).toHaveLength(1); // artist found once
+    expect(calls.filter((call) => call.includes('search=Cached+Painter&'))).toHaveLength(1); // artist found once
   });
 
   it('returns empty info for a work with no artist', async () => {

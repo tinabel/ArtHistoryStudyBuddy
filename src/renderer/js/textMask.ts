@@ -4,14 +4,14 @@ const BLANK = '_____';
 const STEM_MIN_LENGTH = 7; // single-word terms at least this long also mask related forms (Impressionism -> Impressionist)
 const STEM_TRIM = 3;
 
-const stripAccents = (s: string): string => s.normalize('NFD').replace(/\p{M}/gu, '');
-const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const stripAccents = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '');
+const escapeRegex = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Words/phrases that identify `term`: the whole term, its parts, and without a trailing date or parenthetical. */
 function variantsOf(term: string): string[] {
   const cleaned = term.replace(/\([^)]*\)/g, ' ').replace(/,\s*\d{3,4}.*$/, '').trim();
-  const parts = cleaned.split('/').map((p) => p.trim());
-  return [...new Set([term, cleaned, ...parts].filter((v) => v.length > 2))];
+  const parts = cleaned.split('/').map((part) => part.trim());
+  return [...new Set([term, cleaned, ...parts].filter((variant) => variant.length > 2))];
 }
 
 /** Regex source for a variant: hyphens and spaces are interchangeable. */
@@ -21,8 +21,8 @@ const phrasePattern = (variant: string): string =>
 function patternsFor(term: string): string[] {
   const variants = variantsOf(term);
   const patterns = variants.map(phrasePattern);
-  for (const v of variants) {
-    const word = stripAccents(v);
+  for (const variant of variants) {
+    const word = stripAccents(variant);
     if (/^\p{L}+$/u.test(word) && word.length >= STEM_MIN_LENGTH) {
       patterns.push(`${escapeRegex(word.slice(0, word.length - STEM_TRIM))}\\p{L}*`);
     }
@@ -45,7 +45,7 @@ function maskMatches(text: string, plain: string, patterns: string[]): string {
 /** Distinctive words of a term (long words and years), for when the full phrase isn't found verbatim. */
 const wordPatterns = (term: string): string[] =>
   stripAccents(term).split(/[^\p{L}\d]+/u)
-    .filter((w) => w.length >= 5 || /^\d{4}$/.test(w))
+    .filter((word) => word.length >= 5 || /^\d{4}$/.test(word))
     .map(escapeRegex);
 
 /** Returns `definition` with every mention of `term` replaced by a blank. */

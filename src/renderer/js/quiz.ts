@@ -30,7 +30,7 @@ export const resolveKind = (source: Source): Kind =>
 
 /** The right answer plus up to 3 distinct wrong ones, shuffled. */
 function withDistractors(answer: string, candidates: readonly string[]): string[] {
-  const wrong = unique(candidates.filter((c) => c && c.toLowerCase() !== answer.toLowerCase()));
+  const wrong = unique(candidates.filter((candidate) => candidate && candidate.toLowerCase() !== answer.toLowerCase()));
   return shuffle([answer, ...shuffle(wrong).slice(0, DISTRACTORS)]);
 }
 
@@ -61,10 +61,10 @@ const answerFor = (question: Question, work: Work): string =>
 function choicesFor(question: Question, work: Work, exam: Exam): string[] {
   const answer = answerFor(question, work);
   switch (question) {
-    case 'artist': return withDistractors(answer, [...exam.works.map((w) => w.artist), ...FAMOUS_ARTISTS]);
-    case 'title': return withDistractors(answer, [...exam.works.map((w) => w.title), ...FAMOUS_TITLES]);
+    case 'artist': return withDistractors(answer, [...exam.works.map((other) => other.artist), ...FAMOUS_ARTISTS]);
+    case 'title': return withDistractors(answer, [...exam.works.map((other) => other.title), ...FAMOUS_TITLES]);
     case 'year': return withDistractors(answer, decoyDates(answer, 8));
-    case 'movement': return withDistractors(answer, [...exam.works.map((w) => w.movement ?? ''), ...FAMOUS_MOVEMENTS]);
+    case 'movement': return withDistractors(answer, [...exam.works.map((other) => other.movement ?? ''), ...FAMOUS_MOVEMENTS]);
   }
 }
 
@@ -73,12 +73,12 @@ export async function drawCard(exam: Exam, kind: Kind, mode: Mode): Promise<Card
   const quiz = mode === 'quiz';
 
   if (kind === 'terms') {
-    const pool = quiz ? exam.terms.filter((t) => t.def) : exam.terms;
+    const pool = quiz ? exam.terms.filter((candidate) => candidate.def) : exam.terms;
     if (!pool.length) return { error: 'No terms with definitions for quiz mode.' };
-    const t = pick(pool);
+    const term = pick(pool);
     return {
-      kind, term: t.term, def: quiz ? maskTerm(t.def, t.term) : t.def, src: t.src, answer: t.term,
-      choices: quiz ? withDistractors(t.term, exam.terms.map((x) => x.term)) : null,
+      kind, term: term.term, def: quiz ? maskTerm(term.def, term.term) : term.def, src: term.src, answer: term.term,
+      choices: quiz ? withDistractors(term.term, exam.terms.map((other) => other.term)) : null,
     };
   }
 
