@@ -117,9 +117,34 @@ Tests never touch the network: `fetch` is stubbed. UI tests run the real UI modu
 
 Pull requests run typecheck, lint, tests and build in GitHub Actions (`.github/workflows/ci.yml`).
 
+### Security
+
+The app is built on the assumption that the page (and anything it loads from the internet) could misbehave, so the page is given as little power as possible. When changing the app, keep these true:
+
+| Rule | Where |
+|---|---|
+| The page runs sandboxed, without Node, and can't navigate away, open windows or use the camera, microphone or location | `src/main/main.ts` |
+| The page may only load scripts and styles from the app itself, images over `https:`/`data:`, and data from the four services it uses | the Content-Security-Policy in `src/renderer/index.html` |
+| Requests from the page to the main process are accepted only from the app's own `index.html` | `checkSender` in `src/main/ipc.ts` |
+| Importing reads only `.md`, `.markdown` and `.txt` files up to 5 MB, checked on the real file behind any link | `read-md` in `src/main/ipc.ts` |
+| SQL is run only with `?` parameters, never built from text; every value is type-checked going in and coming out | `src/main/database.ts` |
+| Text from files, the internet or the user is escaped before it becomes HTML | `escapeHtml` in `src/renderer/js/ui/dom.ts`; use it for every `${...}` put into `innerHTML` |
+| Links open in the browser only if they are `https:` | `openInBrowser` in `main.ts`, `sourceLink` in `dom.ts` |
+| Only one copy of the app runs at a time, so two can't overwrite each other's saves | the lock at the bottom of `main.ts` |
+| Nothing shipped with the app has a known vulnerability | `npm audit --omit=dev`, run in CI |
+
+Keep Electron on a supported version (the newest three major versions get security fixes): `npm install --save-dev electron@latest`, then `npm test` and `npm start`.
+
+Known limits:
+
+- The database is not encrypted. It holds study material, no passwords or personal data, and only your macOS user can read the file.
+- The app is ad-hoc signed, not signed with an Apple Developer ID, so macOS can't vouch for a copy you downloaded. Build it yourself or get it from someone you trust.
+- An image link you paste is fetched from that site, which then sees your IP address, as with any web page.
+
 ### Dependency notes
 
 - `package.json` forces `minimatch` to `^11.0.1` (`overrides`) to resolve a denial-of-service advisory (GHSA-g3hv-75wg-m249). ESLint, typescript-eslint, `@electron/asar` and Jest's coverage helper still ask for `minimatch` 9 or 10, and none of their latest releases has moved on. Remove the override once they do.
+- `glob` (moderate, GHSA-3g3m-2fjr-6pw4) is pulled in by `@electron/packager` and Jest. The only "fix" npm offers is a much older packager. It is used while building and testing, and is not part of the app.
 - `deepmerge` (low severity, prototype poisoning, GHSA-gcqx-w48m-w2h4) is pulled in by Jest, and no patched version exists. It only merges Jest's own configuration during development and is not part of the app.
 
 ### Project structure

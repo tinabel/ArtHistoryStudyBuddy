@@ -72,6 +72,11 @@ describe('exams from before the database (localStorage)', () => {
     expect(filter?.works).toEqual([]);
   });
 
+  it('have scores that are not whole numbers replaced by 0', async () => {
+    install({ legacy: JSON.stringify([{ name: 'X', stats: { works: { c: '<img src=x>', t: -2 }, terms: { c: 1, t: 2.5 } } }]) });
+    expect((await freshStore()).getExams()[0]?.stats).toEqual({ works: { correct: 0, total: 0 }, terms: { correct: 1, total: 0 } });
+  });
+
   it('get default stats when they lack them', async () => {
     install({ legacy: JSON.stringify([{ name: 'X', works: [], terms: [], filter: null }]) });
     expect((await freshStore()).getExams()[0]?.stats).toEqual({});

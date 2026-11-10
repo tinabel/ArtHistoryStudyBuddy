@@ -19,8 +19,8 @@ export const escapeHtml = (value: string | number | null | undefined): string =>
   String(value ?? '').replace(/[&<>"']/g, (character) => ESCAPES[character] ?? character);
 
 export const sourceLink = (url: string | undefined): string =>
-  url && /^https?:/.test(url)
-    ? `<div class="small"><a class="source" href="${escapeHtml(url)}" target="_blank">Source ↗</a></div>`
+  url?.startsWith('https://')
+    ? `<div class="small"><a class="source" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Source ↗</a></div>`
     : '';
 
 export const thumb = (src: string | undefined): string => (src ? `<img src="${escapeHtml(src)}">` : '<div class="thumb"></div>');
