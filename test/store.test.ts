@@ -1,82 +1,115 @@
-// The store reads localStorage at import time, so each test installs a fake and imports a fresh copy.
+// The store loads its data at import time, so each test sets up what it will find and imports a fresh copy.
+import type { StudyData } from '../src/shared/data.js';
+import { fakeDatabase, type FakeDatabase } from './helpers/fakeDatabase.js';
 
 type Store = typeof import('../src/renderer/js/store.js');
 
-function installStorage(initial?: string): Map<string, string> {
-  const data = new Map<string, string>(initial === undefined ? [] : [['exams', initial]]);
+/**
+ * Gives the store a database (empty unless `saved` is given) and, optionally, exams left in the browser's
+ * localStorage by a version from before the database (`legacy`, the raw text).
+ */
+function install({ saved = null, legacy }: { saved?: StudyData | null; legacy?: string } = {}): FakeDatabase {
+  const database = fakeDatabase(saved);
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { api: database } });
   Object.defineProperty(globalThis, 'localStorage', {
     configurable: true,
-    value: {
-      getItem: (k: string) => data.get(k) ?? null,
-      setItem: (k: string, v: string) => data.set(k, v),
-    },
+    value: { getItem: (key: string) => (key === 'exams' ? legacy ?? null : null) },
   });
-  return data;
+  return database;
 }
 
+/** Starts the store again, as relaunching the app does. It finds whatever the installed database holds. */
 async function freshStore(): Promise<Store> {
   jest.resetModules();
   return import('../src/renderer/js/store.js');
 }
 
-beforeEach(() => { installStorage(); });
+beforeEach(() => { install(); });
 
 describe('loading', () => {
   it('starts empty without saved data', async () => {
+    const store = await freshStore();
+    expect(store.getExams()).toEqual([]);
+    expect(store.getCourses()).toEqual([]);
+  });
+
+  it('loads what the database holds', async () => {
+    install({ saved: { courses: ['Art History 101'], exams: [{ name: 'Midterm', course: 'Art History 101', works: [], terms: [], filter: null, stats: {} }] } });
+    const store = await freshStore();
+    expect(store.getExams().map((e) => e.name)).toEqual(['Midterm']);
+    expect(store.getCourses()).toEqual(['Art History 101']);
+  });
+});
+
+describe('exams from before the database (localStorage)', () => {
+  it('are carried over into the database the first time', async () => {
+    const database = install({ legacy: JSON.stringify([{ name: 'Old Exam', works: [], terms: [], filter: null, stats: { terms: { c: 1, t: 2 } } }]) });
+    const store = await freshStore();
+    expect(store.getExams()[0]).toMatchObject({ name: 'Old Exam', stats: { terms: { c: 1, t: 2 } } });
+    expect(database.saved?.exams.map((e) => e.name)).toEqual(['Old Exam']);
+  });
+
+  it('are ignored once the database has been saved to, even if it is now empty', async () => {
+    install({ saved: { courses: [], exams: [] }, legacy: JSON.stringify([{ name: 'Old Exam' }]) });
     expect((await freshStore()).getExams()).toEqual([]);
   });
 
-  it('survives corrupt saved data', async () => {
-    installStorage('{not json');
+  it('survive corrupt data and skip unreadable entries', async () => {
+    install({ legacy: '{not json' });
     expect((await freshStore()).getExams()).toEqual([]);
+    install({ legacy: JSON.stringify([null, 7, { name: 'Good' }]) });
+    expect((await freshStore()).getExams().map((e) => e.name)).toEqual(['Good']);
   });
 
-  it('migrates the old "list" and "filter" exam formats', async () => {
-    installStorage(JSON.stringify([
+  it('are upgraded from the old "list" and "filter" formats', async () => {
+    install({ legacy: JSON.stringify([
       { name: 'L', type: 'list', items: [{ id: 1, title: 'T' }] },
       { name: 'F', type: 'filter', deptId: '11', deptName: 'Paintings', from: '1400', to: '1600', q: 'portrait' },
-    ]));
+    ]) });
     const [list, filter] = (await freshStore()).getExams();
-    expect(list).toEqual({ name: 'L', works: [{ id: 1, title: 'T' }], terms: [], filter: null, stats: {} });
+    expect(list).toEqual({ name: 'L', works: [{ id: 1, title: 'T', artist: '', date: '', img: '' }], terms: [], filter: null, stats: {} });
     expect(filter?.filter).toEqual({ deptId: '11', deptName: 'Paintings', from: '1400', to: '1600', q: 'portrait' });
     expect(filter?.works).toEqual([]);
   });
 
-  it('adds default stats to current-format exams that lack them', async () => {
-    installStorage(JSON.stringify([{ name: 'X', works: [], terms: [], filter: null }]));
+  it('get default stats when they lack them', async () => {
+    install({ legacy: JSON.stringify([{ name: 'X', works: [], terms: [], filter: null }]) });
     expect((await freshStore()).getExams()[0]?.stats).toEqual({});
   });
 });
 
 describe('saving', () => {
-  it('addExam persists to localStorage', async () => {
-    const data = installStorage();
+  it('addExam saves, and puts the list back if saving fails', async () => {
+    const database = install();
     const store = await freshStore();
     store.addExam(store.makeExam({ name: 'Midterm', terms: [{ term: 'a', def: 'b', src: '' }] }));
-    const saved = JSON.parse(data.get('exams') ?? '[]') as { name: string; works: unknown[] }[];
-    expect(saved).toHaveLength(1);
-    expect(saved[0]?.name).toBe('Midterm');
-    expect(saved[0]?.works).toEqual([]);
+    expect(database.saved?.exams).toHaveLength(1);
+    expect(database.saved?.exams[0]).toMatchObject({ name: 'Midterm', works: [] });
+
+    database.saveData = () => { throw new Error('disk full'); };
+    expect(() => { store.addExam(store.makeExam({ name: 'Final' })); }).toThrow('disk full');
+    expect(store.getExams().map((e) => e.name)).toEqual(['Midterm']);
   });
 
-  it('removeExam deletes by index and persists', async () => {
-    const data = installStorage();
+  it('removeExam deletes by index and saves', async () => {
+    const database = install();
     const store = await freshStore();
     store.addExam(store.makeExam({ name: 'A' }));
     store.addExam(store.makeExam({ name: 'B' }));
     store.removeExam(0);
     expect(store.getExams().map((e) => e.name)).toEqual(['B']);
-    expect((JSON.parse(data.get('exams') ?? '[]') as { name: string }[]).map((e) => e.name)).toEqual(['B']);
+    expect(database.saved?.exams.map((e) => e.name)).toEqual(['B']);
   });
 
-  it('saveExams persists in-place edits', async () => {
-    const data = installStorage();
+  it('saveExams saves in-place edits', async () => {
+    const database = install();
     const store = await freshStore();
     const exam = store.makeExam({ name: 'A', works: [{ id: 1, title: 'T', artist: 'X', date: '', img: '' }] });
     store.addExam(exam);
     exam.works[0]!.nationality = 'French';
+    expect(database.saved?.exams[0]?.works[0]?.nationality).toBeUndefined(); // not until asked
     store.saveExams();
-    expect((JSON.parse(data.get('exams') ?? '[]') as { works: { nationality: string }[] }[])[0]?.works[0]?.nationality).toBe('French');
+    expect(database.saved?.exams[0]?.works[0]?.nationality).toBe('French');
   });
 });
 
@@ -94,13 +127,11 @@ describe('scores', () => {
     expect(store.overallStats(exam)).toEqual({ c: 2, t: 3 });
   });
 
-  it('survives a reload', async () => {
-    const data = installStorage();
+  it('survive a reload', async () => {
     const store = await freshStore();
     const exam = store.makeExam({ name: 'E' });
     store.addExam(exam);
     store.recordResult(exam, 'terms', true);
-    installStorage(data.get('exams'));
     expect((await freshStore()).getExams()[0]?.stats).toEqual({ terms: { c: 1, t: 1 } });
   });
 
@@ -120,23 +151,23 @@ describe('scores', () => {
 
 describe('classes', () => {
   it('keeps classes in order and saves them, including one with no exams', async () => {
-    const data = installStorage();
+    const database = install();
     const store = await freshStore();
     expect(store.addCourse(' Art History 200 ')).toBe(true);
     expect(store.addCourse('Art History 101')).toBe(true);
     expect(store.addCourse('Art History 101')).toBe(false);
     expect(store.addCourse('')).toBe(false);
     expect(store.getCourses()).toEqual(['Art History 101', 'Art History 200']);
-    expect(JSON.parse(data.get('courses') ?? '')).toEqual(['Art History 101', 'Art History 200']);
+    expect(database.saved?.courses).toEqual(['Art History 101', 'Art History 200']);
     expect((await freshStore()).getCourses()).toEqual(['Art History 101', 'Art History 200']);
   });
 
   it('remembers which class an exam is in, and recovers a class named only by an exam', async () => {
-    const data = installStorage();
+    const database = install();
     const store = await freshStore();
     store.addExam(store.makeExam({ name: 'Midterm', course: 'Art History 101' }));
     expect(store.getCourses()).toEqual(['Art History 101']);
-    data.delete('courses');
+    database.saved!.courses = [];
     const reloaded = await freshStore();
     expect(reloaded.getExams()[0]?.course).toBe('Art History 101');
     expect(reloaded.getCourses()).toEqual(['Art History 101']);
@@ -153,10 +184,5 @@ describe('classes', () => {
     expect(store.getCourses()).toEqual([]);
     expect(store.getExams()).toHaveLength(1);
     expect(store.getExams()[0]).not.toHaveProperty('course');
-  });
-
-  it('ignores unreadable saved classes', async () => {
-    installStorage().set('courses', '{not json');
-    expect((await freshStore()).getCourses()).toEqual([]);
   });
 });

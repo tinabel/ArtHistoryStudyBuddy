@@ -1,99 +1,32 @@
-// Exam and class persistence, and score keeping. The only module that touches localStorage.
+// Exams, classes and scores: the app's saved data. The only module that loads or saves it.
+//
+// The data lives in a SQLite database kept by the main process (main/database.ts), reached through
+// `window.api`. Everything is loaded once at startup and held here; every change saves the whole lot again.
 //
 // A class ("course" in code) is just a name: exams point at it with `exam.course`. The list of names is saved
 // separately so a class can exist before it has any exams.
-import type { Exam, Filter, Kind, Score, Term, Work } from './types.js';
+import { loadLegacyExams } from './legacyStorage.js';
+import type { Exam, Kind, Score, StudyData } from './types.js';
 
-const KEY = 'exams';
-const COURSES_KEY = 'courses';
-
-/** Anything that may be in localStorage: the current format or one written by an older version. */
-interface SavedExam {
-  name: string;
-  course?: string;
-  type?: 'list' | 'filter';
-  // legacy "list" exams
-  items?: Work[];
-  // legacy "filter" exams
-  deptId?: string;
-  deptName?: string;
-  from?: string;
-  to?: string;
-  q?: string;
-  // current format
-  works?: Work[];
-  terms?: Term[];
-  filter?: Filter | null;
-  stats?: Exam['stats'];
-}
-
-/** Upgrade exams saved by older versions of the app. */
-function migrate(e: SavedExam): Exam {
-  if (e.type === 'list') {
-    return { name: e.name, works: e.items ?? [], terms: [], filter: null, stats: {} };
-  }
-  if (e.type === 'filter') {
-    return {
-      name: e.name, works: [], terms: [], stats: {},
-      filter: { deptId: e.deptId ?? '', deptName: e.deptName, from: e.from ?? '', to: e.to ?? '', q: e.q ?? '' },
-    };
-  }
-  const exam: Exam = { name: e.name, works: e.works ?? [], terms: e.terms ?? [], filter: e.filter ?? null, stats: e.stats ?? {} };
-  if (typeof e.course === 'string' && e.course) exam.course = e.course;
-  return exam;
-}
-
-const BACKUP_KEY = 'exams.backup';
-
-/** Keep the unreadable data: the next save would otherwise overwrite it for good. */
-function backUp(raw: string): void {
-  try { localStorage.setItem(BACKUP_KEY, raw); } catch { /* storage unavailable or full */ }
-}
-
-const looksSaved = (e: unknown): e is SavedExam =>
-  typeof e === 'object' && e !== null && typeof (e as { name?: unknown }).name === 'string';
-
-/** Reads each saved exam on its own, so one bad entry doesn't take the others with it. */
-function load(): Exam[] {
-  let raw: string | null;
-  try { raw = localStorage.getItem(KEY); } catch { return []; }
-  if (raw === null) return [];
-
-  let saved: unknown;
-  try { saved = JSON.parse(raw); } catch { backUp(raw); return []; }
-  if (!Array.isArray(saved)) { backUp(raw); return []; }
-
-  const loaded: Exam[] = [];
-  let skipped = false;
-  for (const entry of saved) {
-    try {
-      if (looksSaved(entry)) loaded.push(migrate(entry));
-      else skipped = true;
-    } catch {
-      skipped = true;
-    }
-  }
-  if (skipped) backUp(raw);
-  return loaded;
-}
-
-function loadCourses(): string[] {
+function load(): StudyData {
+  const saved = window.api.loadData();
+  if (saved) return saved;
+  // Nothing in the database yet: carry over exams from versions that kept them in the browser's storage.
+  const legacy: StudyData = { courses: [], exams: loadLegacyExams() };
   try {
-    const saved: unknown = JSON.parse(localStorage.getItem(COURSES_KEY) ?? '[]');
-    return Array.isArray(saved) ? saved.filter((name): name is string => typeof name === 'string' && name !== '') : [];
-  } catch {
-    return [];
+    if (legacy.exams.length) window.api.saveData(legacy);
+  } catch (error) {
+    console.error('Could not copy earlier exams into the database; they are still shown.', error);
   }
+  return legacy;
 }
 
-const exams: Exam[] = load();
-const courses: string[] = [];
-for (const name of [...loadCourses(), ...exams.map((e) => e.course ?? '')]) ensureCourse(name);
+const { exams, courses } = load();
+for (const exam of exams) ensureCourse(exam.course ?? '');
 
-/** Throws if the browser refuses the write (e.g. storage full). */
+/** Throws if the data can't be written. */
 function persist(): void {
-  localStorage.setItem(KEY, JSON.stringify(exams));
-  localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
+  window.api.saveData({ courses, exams });
 }
 
 export const makeExam = ({ name, course, works = [], terms = [], filter = null }: Partial<Exam> & { name: string }): Exam =>
