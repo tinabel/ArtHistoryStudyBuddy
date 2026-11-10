@@ -30,7 +30,7 @@ export async function findImage(query: string, surname: string): Promise<WorkIma
       .filter((page) => /\.(jpe?g|png)$/i.test(page.title) && page.imageinfo?.[0]?.thumburl);
     const best = pages.find((page) => surname && page.title.toLowerCase().includes(surname)) ?? pages[0];
     const info = best?.imageinfo?.[0];
-    if (info?.thumburl) return { img: info.thumburl, src: info.descriptionurl ?? '' };
+    if (info?.thumburl) return { image: info.thumburl, source: info.descriptionurl ?? '' };
   } catch {
     /* fall through */
   }

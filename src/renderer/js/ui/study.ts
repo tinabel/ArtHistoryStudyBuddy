@@ -88,8 +88,8 @@ async function backfillArtistInfo(owner: Exam, card: Card): Promise<void> {
 // ---- rendering ----
 
 function mediaInnerHtml(card: WorkCard): string {
-  return card.img
-    ? `<img src="${escapeHtml(card.img)}">`
+  return card.image
+    ? `<img src="${escapeHtml(card.image)}">`
     : `<h3>${escapeHtml(card.title)}</h3><div class="small">(no image)</div>`;
 }
 
@@ -107,7 +107,7 @@ const QUESTION_TEXT: Record<Question, string> = {
 function questionHtml(card: Card): string {
   if (card.kind === 'terms') {
     return card.choices
-      ? `<div class="prompt">${escapeHtml(card.def)}</div><div>Which term?</div>`
+      ? `<div class="prompt">${escapeHtml(card.definition)}</div><div>Which term?</div>`
       : `<h3 class="prompt">${escapeHtml(card.term)}</h3>`;
   }
   return card.choices ? `<div>${QUESTION_TEXT[card.question]}</div>` : '';
@@ -180,9 +180,9 @@ function record(correct: boolean): void {
 function reveal(): void {
   if (!currentCard) return;
   const body = currentCard.kind === 'terms'
-    ? escapeHtml(currentCard.def || '(no definition — edit exam to add)')
+    ? escapeHtml(currentCard.definition || '(no definition — edit exam to add)')
     : `<strong>${artistLabel(currentCard)}</strong><br>${workDetails(currentCard)}`;
-  byId('answer').innerHTML = body + sourceLink(currentCard.src) + gradeButtonsHtml();
+  byId('answer').innerHTML = body + sourceLink(currentCard.source) + gradeButtonsHtml();
   shown = { kind: 'reveal' };
   details.showEditButton();
 }
@@ -191,7 +191,7 @@ function showFeedback(correct: boolean): void {
   if (!currentCard) return;
   const feedback = byId('feedback');
   feedback.className = correct ? 'correct' : 'incorrect';
-  feedback.innerHTML = `${correct ? 'Correct! ' : 'Answer: '}${answerSummary(currentCard)}${sourceLink(currentCard.src)}`;
+  feedback.innerHTML = `${correct ? 'Correct! ' : 'Answer: '}${answerSummary(currentCard)}${sourceLink(currentCard.source)}`;
   shown = { kind: 'feedback', correct };
 }
 

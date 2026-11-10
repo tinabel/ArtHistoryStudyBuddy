@@ -6,8 +6,8 @@ export type { Exam, Filter, Kind, Score, StudyData, Term, Work } from '../../sha
 
 /** A picture and the page it came from ('' when there is none). */
 export interface WorkImage {
-  img: string;
-  src: string;
+  image: string;
+  source: string;
 }
 
 /** A study source choice; 'mix' alternates between works and terms. */
@@ -18,8 +18,8 @@ export type Mode = 'flash' | 'quiz';
 export interface TermCard {
   kind: 'terms';
   term: string;
-  def: string;
-  src?: string;
+  definition: string;
+  source?: string;
   answer: string;
   choices: string[] | null;
 }
@@ -37,8 +37,8 @@ export interface WorkCard {
   nationality?: string;
   movement?: string;
   date: string;
-  img: string;
-  src?: string;
+  image: string;
+  source?: string;
   answer: string;
   choices: string[] | null;
 }

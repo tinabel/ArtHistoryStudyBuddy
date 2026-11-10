@@ -12,10 +12,10 @@ const data: StudyData = {
       name: 'Midterm',
       course: 'Art History 101',
       works: [
-        { id: 436535, title: 'Wheat Field', artist: 'Vincent van Gogh', nationality: 'Dutch', movement: 'Post-Impressionism', date: '1889', img: 'https://images/vg.jpg', src: 'https://met/436535' },
-        { id: 'md-Manet|Olympia', title: 'Olympia', artist: 'Édouard Manet', nationality: '', date: '1863', img: '' },
+        { id: 436535, title: 'Wheat Field', artist: 'Vincent van Gogh', nationality: 'Dutch', movement: 'Post-Impressionism', date: '1889', image: 'https://images/vg.jpg', source: 'https://met/436535' },
+        { id: 'md-Manet|Olympia', title: 'Olympia', artist: 'Édouard Manet', nationality: '', date: '1863', image: '' },
       ],
-      terms: [{ term: 'Sublime', def: 'awe mixed with terror', src: 'https://en.wikipedia.org/wiki/Sublime' }, { term: 'Impasto', def: '' }],
+      terms: [{ term: 'Sublime', definition: 'awe mixed with terror', source: 'https://en.wikipedia.org/wiki/Sublime' }, { term: 'Impasto', definition: '' }],
       filter: null,
       stats: { works: { correct: 3, total: 4 } },
     },
@@ -73,7 +73,7 @@ it('refuses values of the wrong kind, and stores SQL-looking text as plain text'
   const save = (changes: object): void => { database.save({ courses: [], exams: [{ ...exam, ...changes }] }); };
   expect(() => { save({ name: 42 }); }).toThrow('Exam name must be text');
   expect(() => { save({ stats: { works: { correct: '<b>1</b>', total: 2 } } }); }).toThrow('A score must be a count');
-  expect(() => { save({ works: [{ id: {}, title: 'T', artist: 'A', date: '', img: '' }] }); }).toThrow('A work id');
+  expect(() => { save({ works: [{ id: {}, title: 'T', artist: 'A', date: '', image: '' }] }); }).toThrow('A work id');
   expect(database.load()).toBeNull(); // none of those was saved
 
   const hostile = "Robert'); DROP TABLE exams;--";
