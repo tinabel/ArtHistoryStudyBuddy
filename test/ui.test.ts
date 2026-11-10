@@ -23,25 +23,25 @@ let go: (view: 'home' | 'editor' | 'study') => void;
 
 // ---- helpers ----
 
-const $ = (selector: string): HTMLElement => {
-  const el = document.querySelector<HTMLElement>(selector);
-  if (!el) throw new Error(`No element matches ${selector}`);
-  return el;
+const find = (selector: string): HTMLElement => {
+  const element = document.querySelector<HTMLElement>(selector);
+  if (!element) throw new Error(`No element matches ${selector}`);
+  return element;
 };
 const all = (selector: string): HTMLElement[] => [...document.querySelectorAll<HTMLElement>(selector)];
-const text = (selector: string): string => $(selector).textContent.replace(/\s+/g, ' ').trim();
-const click = (selector: string | HTMLElement): void => { (typeof selector === 'string' ? $(selector) : selector).click(); };
+const text = (selector: string): string => find(selector).textContent.replace(/\s+/g, ' ').trim();
+const click = (selector: string | HTMLElement): void => { (typeof selector === 'string' ? find(selector) : selector).click(); };
 const act = (name: string, index?: number): HTMLElement =>
   all(`[data-action="${name}"]`)[index ?? 0] ?? (() => { throw new Error(`No action ${name}`); })();
-const setValue = (selector: string, value: string): void => { ($(selector) as HTMLInputElement).value = value; };
+const setValue = (selector: string, value: string): void => { (find(selector) as HTMLInputElement).value = value; };
 const choose = (selector: string, value: string): void => {
-  const el = $(selector) as HTMLSelectElement;
-  el.value = value;
-  el.dispatchEvent(new Event('change', { bubbles: true }));
+  const element = find(selector) as HTMLSelectElement;
+  element.value = value;
+  element.dispatchEvent(new Event('change', { bubbles: true }));
 };
-const sleep = (ms: number): Promise<void> => new Promise((r) => { setTimeout(r, ms); });
+const sleep = (milliseconds: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, milliseconds); });
 async function waitFor(condition: () => boolean, what = 'condition'): Promise<void> {
-  for (let i = 0; i < 1000; i++) { // up to 10 s: generous, because a loaded CI machine can be slow
+  for (let attempt = 0; attempt < 1000; attempt++) { // up to 10 s: generous, because a loaded CI machine can be slow
     if (condition()) return;
     await sleep(10);
   }
@@ -50,14 +50,14 @@ async function waitFor(condition: () => boolean, what = 'condition'): Promise<vo
 /** Waits until the study card has finished loading (a fixed sleep is too short on a busy machine). */
 const settle = async (): Promise<void> => {
   await sleep(0);
-  await waitFor(() => !$('#card').textContent.includes('Loading...'), 'the card to load');
+  await waitFor(() => !find('#card').textContent.includes('Loading...'), 'the card to load');
 };
 
-const view = (): string => (['home', 'editor', 'study'].find((id) => !$(`#${id}`).hidden) ?? 'none');
+const view = (): string => (['home', 'editor', 'study'].find((id) => !find(`#${id}`).hidden) ?? 'none');
 
 const TERM_NAMES = ['Realism', 'Sublime', 'Japonisme', 'Primitivism'];
 // The code in each definition identifies its term even though the quiz masks the term's own name.
-const termsOf = (...names: string[]): Term[] => names.map((n, i) => ({ term: n, def: `${n} was a movement (code ${i}).`, src: 'https://en.wikipedia.org/wiki/x' }));
+const termsOf = (...names: string[]): Term[] => names.map((name, code) => ({ term: name, def: `${name} was a movement (code ${code}).`, src: 'https://en.wikipedia.org/wiki/x' }));
 const termInPrompt = (prompt: string): string => TERM_NAMES[Number(/code (\d+)/.exec(prompt)?.[1])] ?? '';
 const works: Work[] = [
   { id: 1, title: 'Third of May', artist: 'Francisco Goya', nationality: 'Spanish', movement: 'Romanticism', date: '1814', img: 'img-goya.png', src: 'https://commons/goya' },
@@ -95,7 +95,7 @@ beforeEach(() => {
   for (const name of [...store.getCourses()]) store.removeCourse(name);
   database.saved = null;
   stubFetch([['/departments', { departments: [{ departmentId: 11, displayName: 'European Paintings' }] }]]);
-  ($('#mode') as HTMLSelectElement).value = 'flash'; // the dropdown keeps its value between tests
+  (find('#mode') as HTMLSelectElement).value = 'flash'; // the dropdown keeps its value between tests
   go('home');
 });
 
@@ -136,7 +136,7 @@ describe('classes', () => {
     setValue('#newCourse', name);
     click(act('home.addCourse'));
   };
-  const headings = (): string[] => all('#examList h3').map((h) => h.textContent);
+  const headings = (): string[] => all('#examList h3').map((heading) => heading.textContent);
 
   it('adds classes in order, ignoring blanks and duplicates', () => {
     addClass('Art History 400: Indian and Southeast Asian Art');
@@ -145,14 +145,14 @@ describe('classes', () => {
     addClass('Art History 101');
     expect(headings()).toEqual(['Art History 101', 'Art History 400: Indian and Southeast Asian Art']);
     expect(text('#examList')).toContain('No exams in this class yet.');
-    expect(($('#newCourse') as HTMLInputElement).value).toBe('Art History 101'); // the duplicate stays for correcting
+    expect((find('#newCourse') as HTMLInputElement).value).toBe('Art History 101'); // the duplicate stays for correcting
   });
 
   it("adds an exam to a class from that class's own button", () => {
     addClass('Art History 101');
     addClass('Art History 200: Western Romanticism');
     click(act('home.new', 1)); // the second class's "+ Add Exam"
-    expect(($('#exCourse') as HTMLSelectElement).value).toBe('Art History 200: Western Romanticism');
+    expect((find('#exCourse') as HTMLSelectElement).value).toBe('Art History 200: Western Romanticism');
     setValue('#exName', 'Romanticism Midterm');
     setValue('#exTerms', 'Sublime: awe mixed with terror');
     click(act('editor.save'));
@@ -163,12 +163,12 @@ describe('classes', () => {
 
   it('hides the class choice in the editor until a class exists', () => {
     click(act('home.new'));
-    expect($('#exCourse').hidden).toBe(true);
+    expect(find('#exCourse').hidden).toBe(true);
     click(act('editor.cancel'));
     addClass('Art History 101');
     click(act('home.new', 1)); // the general "+ Add Exam" under the list
-    expect($('#exCourse').hidden).toBe(false);
-    expect(($('#exCourse') as HTMLSelectElement).value).toBe('');
+    expect(find('#exCourse').hidden).toBe(false);
+    expect((find('#exCourse') as HTMLSelectElement).value).toBe('');
   });
 
   it('moves an exam between classes, and lists exams outside any class under "No class"', () => {
@@ -201,7 +201,7 @@ describe('classes', () => {
     expect(text('#studyTitle')).toBe('Class Exam');
     click(act('study.back'));
     click(act('home.delete'));
-    expect(store.getExams().map((e) => e.name)).toEqual(['Loose Exam']);
+    expect(store.getExams().map((exam) => exam.name)).toEqual(['Loose Exam']);
   });
 });
 
@@ -209,8 +209,8 @@ describe('editor', () => {
   it('opens with a clean form and loads departments', async () => {
     click(act('home.new'));
     expect(view()).toBe('editor');
-    await waitFor(() => ($('#exDept') as HTMLSelectElement).options.length > 1, 'departments');
-    expect(($('#exName') as HTMLInputElement).value).toBe('');
+    await waitFor(() => (find('#exDept') as HTMLSelectElement).options.length > 1, 'departments');
+    expect((find('#exName') as HTMLInputElement).value).toBe('');
   });
 
   it('validates before saving', () => {
@@ -221,7 +221,7 @@ describe('editor', () => {
     click(act('editor.save'));
     expect(text('#editorMsg')).toBe('Add works, terms, or a random pool.');
     click('#useFilter');
-    expect($('#filterFields').hidden).toBe(false);
+    expect(find('#filterFields').hidden).toBe(false);
     setValue('#exFrom', '1400');
     click(act('editor.save'));
     expect(text('#editorMsg')).toBe('Set both years or neither.');
@@ -271,7 +271,7 @@ describe('editor', () => {
     ]);
     click(act('home.new'));
     setValue('#searchQ', 'monet');
-    $('#searchQ').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    find('#searchQ').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await waitFor(() => text('#searchResults').includes('Haystacks'), 'search results');
     expect(text('#searchResults')).toContain('Claude Monet (French) · 1891');
     click(act('editor.addResult'));
@@ -299,8 +299,8 @@ describe('editor', () => {
     await waitFor(() => text('#editorMsg').startsWith('Imported'), 'import');
 
     expect(window.api.readMd).toHaveBeenCalledWith('~/exam.md');
-    expect(($('#exName') as HTMLInputElement).value).toBe('Imported Exam');
-    expect(($('#exTerms') as HTMLTextAreaElement).value).toBe('Realism: Realism was a movement. It began in France.');
+    expect((find('#exName') as HTMLInputElement).value).toBe('Imported Exam');
+    expect((find('#exTerms') as HTMLTextAreaElement).value).toBe('Realism: Realism was a movement. It began in France.');
     expect(text('#addedCount')).toBe('1');
 
     click(act('editor.save'));
@@ -329,7 +329,7 @@ describe('studying terms', () => {
       expect(answer).not.toBe('');
       expect(prompt).toContain('_____'); // the term itself is masked
       expect(prompt.toLowerCase()).not.toContain(answer.toLowerCase());
-      const right = all('#choices button').find((b) => b.textContent === answer);
+      const right = all('#choices button').find((button) => button.textContent === answer);
       if (!right) throw new Error(`no choice for ${answer}`);
       click(right);
       expect(right.classList.contains('right')).toBe(true);
@@ -346,7 +346,7 @@ describe('studying terms', () => {
     await study('terms', 'quiz');
     const prompt = text('#card .prompt');
     const answer = termInPrompt(prompt);
-    const wrong = all('#choices button').find((b) => b.textContent !== answer);
+    const wrong = all('#choices button').find((button) => button.textContent !== answer);
     if (!wrong) throw new Error('no wrong choice');
     click(wrong);
     expect(wrong.classList.contains('wrong')).toBe(true);
@@ -362,7 +362,7 @@ describe('studying terms', () => {
     expect(all('#choices')).toHaveLength(0);
     click(act('study.reveal'));
     expect(text('#answer')).toContain('was a movement');
-    expect($('#selfgrade')).toBeTruthy();
+    expect(find('#selfgrade')).toBeTruthy();
     click(act('study.grade', 0)); // Got it
     expect(all('#selfgrade')).toHaveLength(0);
     expect(text('#score')).toContain('Session: 1 / 1 · All-time: 1 / 1 (100%)');
@@ -389,25 +389,25 @@ describe('studying works', () => {
     year: 'When was this made?',
     movement: 'What art movement is this?',
   } as const;
-  type Q = keyof typeof QUESTION_TEXT;
+  type QuestionKind = keyof typeof QUESTION_TEXT;
 
   const workOnScreen = (): Work => {
-    const src = $('#card img').getAttribute('src');
-    const w = works.find((x) => x.img === src);
-    if (!w) throw new Error(`unknown image ${src}`);
-    return w;
+    const src = find('#card img').getAttribute('src');
+    const artwork = works.find((candidate) => candidate.img === src);
+    if (!artwork) throw new Error(`unknown image ${src}`);
+    return artwork;
   };
-  const questionOnScreen = (): Q => {
-    const q = (Object.keys(QUESTION_TEXT) as Q[]).find((k) => text('#card').includes(QUESTION_TEXT[k]));
-    if (!q) throw new Error(`no known question in: ${text('#card')}`);
-    return q;
+  const questionOnScreen = (): QuestionKind => {
+    const question = (Object.keys(QUESTION_TEXT) as QuestionKind[]).find((kind) => text('#card').includes(QUESTION_TEXT[kind]));
+    if (!question) throw new Error(`no known question in: ${text('#card')}`);
+    return question;
   };
-  const factOf = (w: Work, q: Q): string => ({ artist: w.artist, title: w.title, year: w.date, movement: w.movement ?? '' })[q];
+  const factOf = (artwork: Work, question: QuestionKind): string => ({ artist: artwork.artist, title: artwork.title, year: artwork.date, movement: artwork.movement ?? '' })[question];
 
   it('quiz asks about the artist, title, year and movement, and grades each correctly', async () => {
     seed({ terms: [] });
     await study('works', 'quiz');
-    const seen = new Set<Q>();
+    const seen = new Set<QuestionKind>();
     for (let round = 1; round <= 80; round++) {
       const work = workOnScreen();
       const question = questionOnScreen();
@@ -416,8 +416,8 @@ describe('studying works', () => {
 
       const choices = all('#choices button');
       expect(choices).toHaveLength(4);
-      expect(choices.map((b) => b.textContent)).toContain(answer);
-      click(choices.find((b) => b.textContent === answer) ?? choices[0]!);
+      expect(choices.map((button) => button.textContent)).toContain(answer);
+      click(choices.find((button) => button.textContent === answer) ?? choices[0]!);
 
       expect(all('#choices .right')).toHaveLength(1);
       expect(text('#feedback')).toContain('Correct!');
@@ -434,12 +434,12 @@ describe('studying works', () => {
     await study('works', 'quiz');
     const work = workOnScreen();
     const choices = all('#choices button');
-    click(choices.find((b) => b.textContent === factOf(work, questionOnScreen())) ?? choices[0]!);
+    click(choices.find((button) => button.textContent === factOf(work, questionOnScreen())) ?? choices[0]!);
     const feedback = text('#feedback');
     for (const part of [work.artist, `(${work.nationality ?? ''})`, work.title, work.date, work.movement ?? '']) {
       expect(feedback).toContain(part);
     }
-    if (work.src) expect($('#feedback a.source').getAttribute('href')).toBe(work.src);
+    if (work.src) expect(find('#feedback a.source').getAttribute('href')).toBe(work.src);
   });
 
   it('a wrong answer is marked, and the right one is shown', async () => {
@@ -447,7 +447,7 @@ describe('studying works', () => {
     await study('works', 'quiz');
     const work = workOnScreen();
     const answer = factOf(work, questionOnScreen());
-    const wrong = all('#choices button').find((b) => b.textContent !== answer)!;
+    const wrong = all('#choices button').find((button) => button.textContent !== answer)!;
     click(wrong);
     expect(wrong.classList.contains('wrong')).toBe(true);
     expect(all('#choices .right')[0]?.textContent).toBe(answer);
@@ -458,7 +458,7 @@ describe('studying works', () => {
   it('never asks for the title of a work shown without an image', async () => {
     seed({ terms: [], works: [{ id: 9, title: 'Lost Painting', artist: 'Unknown Hand', nationality: '', movement: 'Baroque', date: '1700', img: '' }] });
     await study('works', 'quiz');
-    for (let i = 0; i < 40; i++) {
+    for (let round = 0; round < 40; round++) {
       expect(text('#card')).not.toContain(QUESTION_TEXT.title);
       click(act('study.next'));
       await settle();
@@ -527,7 +527,7 @@ describe('studying works', () => {
 describe('editing details', () => {
   const manet = (id: number, title: string, img: string): Work =>
     ({ id, title, artist: 'Edouard Manet', nationality: 'French', movement: 'Impressionism', date: '1863', img, src: '' });
-  const input = (id: string): HTMLInputElement => $(`#${id}`) as HTMLInputElement;
+  const input = (id: string): HTMLInputElement => find(`#${id}`) as HTMLInputElement;
   const savedWorks = (): Work[] => savedExams()[0]?.works ?? [];
 
   async function revealWork(): Promise<void> {
@@ -591,15 +591,15 @@ describe('editing details', () => {
       manet(1, 'Olympia', 'o.png'), manet(2, 'The Fifer', 'f.png'),
       { ...manet(3, 'Other', 'x.png'), artist: 'Someone Else', nationality: 'Dutch' },
     ];
-    seed({ terms: [], works: original.map((w) => ({ ...w })) });
+    seed({ terms: [], works: original.map((artwork) => ({ ...artwork })) });
     await revealWork();
-    const shown = original.find((w) => w.img === $('#card img').getAttribute('src'))!; // whichever card came up
+    const shown = original.find((artwork) => artwork.img === find('#card img').getAttribute('src'))!; // whichever card came up
     click(act('study.edit'));
     setValue('#editNationality', 'Edited');
     click(act('study.saveEdit'));
-    for (const w of savedWorks()) {
-      const before = original.find((o) => o.id === w.id)!;
-      expect(w.nationality).toBe(before.artist === shown.artist ? 'Edited' : before.nationality);
+    for (const artwork of savedWorks()) {
+      const before = original.find((originalWork) => originalWork.id === artwork.id)!;
+      expect(artwork.nationality).toBe(before.artist === shown.artist ? 'Edited' : before.nationality);
     }
   });
 
@@ -636,7 +636,7 @@ describe('editing details', () => {
     expect(store.getExams()[0]?.works[0]?.movement).toBe(''); // "" = looked at, unknown: not refilled
     click(act('study.back'));
     await study('works', 'quiz');
-    for (let i = 0; i < 40; i++) {
+    for (let round = 0; round < 40; round++) {
       expect(text('#card')).not.toContain('What art movement is this?');
       click(act('study.next'));
       await settle();
@@ -647,13 +647,13 @@ describe('editing details', () => {
     seed({ terms: [], works: [{ ...manet(1, 'Olympia', 'o.png'), date: '' }] }); // artist, title and movement can be asked
     await study('works', 'quiz');
     const question = text('#card');
-    const wrongButton = all('#choices button').find((b) => b.textContent !== (question.includes('artist') ? 'Edouard Manet' : question.includes('title') ? 'Olympia' : 'Impressionism'))!;
+    const wrongButton = all('#choices button').find((button) => button.textContent !== (question.includes('artist') ? 'Edouard Manet' : question.includes('title') ? 'Olympia' : 'Impressionism'))!;
     click(wrongButton);
-    expect($('#feedback').className).toBe('incorrect');
+    expect(find('#feedback').className).toBe('incorrect');
     click(act('study.edit'));
     setValue('#editNationality', 'Franco-Parisian');
     click(act('study.saveEdit'));
-    expect($('#feedback').className).toBe('incorrect');
+    expect(find('#feedback').className).toBe('incorrect');
     expect(text('#feedback')).toContain('Franco-Parisian');
     expect(text('#score')).toContain('Session: 0 / 1'); // editing does not change the score
   });
@@ -664,9 +664,9 @@ describe('editing details', () => {
     click(act('study.reveal'));
     click(act('study.edit'));
     expect(input('editTerm').value).toBe('Sublime');
-    expect(($('#editDef') as HTMLTextAreaElement).value).toBe('A wrong definition.');
+    expect((find('#editDef') as HTMLTextAreaElement).value).toBe('A wrong definition.');
     setValue('#editTerm', 'The Sublime');
-    ($('#editDef') as HTMLTextAreaElement).value = 'Awe before overwhelming nature.';
+    (find('#editDef') as HTMLTextAreaElement).value = 'Awe before overwhelming nature.';
     click(act('study.saveEdit'));
     expect(text('#answer')).toContain('Awe before overwhelming nature.');
     expect(store.getExams()[0]?.terms[0]).toMatchObject({ term: 'The Sublime', def: 'Awe before overwhelming nature.', src: 'https://en.wikipedia.org/wiki/Sublime' });
@@ -719,7 +719,7 @@ describe('editing details', () => {
 describe('adding images', () => {
   const work = (over: Partial<Work> = {}): Work =>
     ({ id: 1, title: 'Olympia', artist: 'Edouard Manet', nationality: 'French', movement: 'Realism', date: '1863', img: '', src: '', ...over });
-  const input = (id: string): HTMLInputElement => $(`#${id}`) as HTMLInputElement;
+  const input = (id: string): HTMLInputElement => find(`#${id}`) as HTMLInputElement;
   const savedWorks = (): Work[] => savedExams()[0]?.works ?? [];
   const COMMONS_HIT: [string, unknown] = ['commons.wikimedia.org', { query: { pages: { a: {
     index: 1, title: 'File:Manet Olympia.jpg', imageinfo: [{ thumburl: 'https://upload.wikimedia.org/olympia-600.jpg', descriptionurl: 'https://commons.wikimedia.org/wiki/File:Manet_Olympia.jpg' }],
@@ -750,7 +750,7 @@ describe('adding images', () => {
     await study('works', 'flash');
     click(act('study.reveal'));
     click(act('study.edit'));
-    expect($('#editPreview img').getAttribute('src')).toBe('https://example.org/olympia.jpg');
+    expect(find('#editPreview img').getAttribute('src')).toBe('https://example.org/olympia.jpg');
     expect(input('editImageUrl').value).toBe('https://example.org/olympia.jpg');
   });
 
@@ -768,7 +768,7 @@ describe('adding images', () => {
     setValue('#editImageUrl', 'https://example.org/olympia.jpg');
     click(act('study.saveEdit'));
 
-    expect($('#card .card-media img').getAttribute('src')).toBe('https://example.org/olympia.jpg');
+    expect(find('#card .card-media img').getAttribute('src')).toBe('https://example.org/olympia.jpg');
     expect(text('#card')).not.toContain('(no image)');
     expect(savedWorks()[0]).toMatchObject({ img: 'https://example.org/olympia.jpg', src: 'https://example.org/olympia.jpg' });
   });
@@ -806,13 +806,13 @@ describe('adding images', () => {
     const calls = stubFetch([COMMONS_HIT]);
     setValue('#editTitle', 'Olympia (corrected)');
     click(act('study.findImage'));
-    await waitFor(() => $('#editPreview').querySelector('img') !== null, 'the found image');
-    expect($('#editPreview img').getAttribute('src')).toBe('https://upload.wikimedia.org/olympia-600.jpg');
+    await waitFor(() => find('#editPreview').querySelector('img') !== null, 'the found image');
+    expect(find('#editPreview img').getAttribute('src')).toBe('https://upload.wikimedia.org/olympia-600.jpg');
     expect(text('#editImageMsg')).toContain('Found an image');
     expect(decodeURIComponent(calls[0] ?? '').replace(/\+/g, ' ')).toContain('Olympia  manet'.replace('  ', ' '));
     click(act('study.saveEdit'));
     expect(savedWorks()[0]).toMatchObject({ img: 'https://upload.wikimedia.org/olympia-600.jpg', src: 'https://commons.wikimedia.org/wiki/File:Manet_Olympia.jpg' });
-    expect($('#card .card-media a, #card .card-media img')).toBeTruthy();
+    expect(find('#card .card-media a, #card .card-media img')).toBeTruthy();
   });
 
   it('says so when nothing is found, and when there is no title to search for', async () => {
@@ -842,15 +842,15 @@ describe('adding images', () => {
     await openForm(work());
     const file = new File(['pixels'], 'olympia.png', { type: 'image/png' });
     chooseFile(file);
-    await waitFor(() => $('#editPreview').querySelector('img') !== null, 'the chosen image');
+    await waitFor(() => find('#editPreview').querySelector('img') !== null, 'the chosen image');
     expect(fileToDataUrl).toHaveBeenCalledWith(file);
-    expect($('#editPreview img').getAttribute('src')).toBe('data:image/jpeg;base64,AAAA');
+    expect(find('#editPreview img').getAttribute('src')).toBe('data:image/jpeg;base64,AAAA');
     expect(input('editImageUrl').value).toBe(''); // a data: address is not shown as a link
     expect(text('#editImageMsg')).toContain('from your file');
 
     click(act('study.saveEdit'));
     expect(savedWorks()[0]).toMatchObject({ img: 'data:image/jpeg;base64,AAAA', src: '' });
-    expect($('#card .card-media img').getAttribute('src')).toBe('data:image/jpeg;base64,AAAA');
+    expect(find('#card .card-media img').getAttribute('src')).toBe('data:image/jpeg;base64,AAAA');
   });
 
   it('explains when a chosen file cannot be used, and changes nothing', async () => {
@@ -867,7 +867,7 @@ describe('adding images', () => {
     (fileToDataUrl as jest.Mock).mockResolvedValue('data:image/jpeg;base64,AAAA');
     await openForm(work());
     chooseFile(new File(['x'], 'a.png', { type: 'image/png' }));
-    await waitFor(() => $('#editPreview').querySelector('img') !== null, 'the chosen image');
+    await waitFor(() => find('#editPreview').querySelector('img') !== null, 'the chosen image');
     click(act('study.cancelEdit'));
     expect(savedWorks()[0]?.img).toBe('');
     click(act('study.edit'));
@@ -876,7 +876,7 @@ describe('adding images', () => {
 
   it('puts everything back and explains when saving fails', async () => {
     await openForm(work(), work({ id: 2, title: 'The Fifer', date: '1866' }));
-    const shown = $('#card img, #card h3').textContent;
+    const shown = find('#card img, #card h3').textContent;
     setValue('#editImageUrl', 'https://example.org/olympia.jpg');
     setValue('#editNationality', 'Parisian');
     setValue('#editMovement', 'Cubism');
@@ -887,12 +887,12 @@ describe('adding images', () => {
     click(act('study.saveEdit'));
     expect(text('#editMsg')).toMatch(/^Couldn't save/);
     expect(all('.edit-form')).toHaveLength(1); // the form stays open so nothing typed is lost
-    for (const w of store.getExams()[0]!.works) expect(w).toMatchObject({ img: '', nationality: 'French', movement: 'Realism' });
-    expect($('#card img, #card h3').textContent).toBe(shown);
+    for (const artwork of store.getExams()[0]!.works) expect(artwork).toMatchObject({ img: '', nationality: 'French', movement: 'Realism' });
+    expect(find('#card img, #card h3').textContent).toBe(shown);
 
     saveData.mockRestore();
     click(act('study.saveEdit')); // and it works once saving does
-    expect(savedWorks().every((w) => w.nationality === 'Parisian')).toBe(true);
+    expect(savedWorks().every((artwork) => artwork.nationality === 'Parisian')).toBe(true);
     expect(all('.edit-form')).toHaveLength(0);
   });
 
@@ -903,7 +903,7 @@ describe('adding images', () => {
     choose('#mode', 'quiz');
     await settle();
     let asked = false;
-    for (let i = 0; i < 60 && !asked; i++) {
+    for (let round = 0; round < 60 && !asked; round++) {
       asked = text('#card').includes('What is the title of this work?');
       click(act('study.next'));
       await settle();
@@ -917,14 +917,14 @@ describe('studying other sources', () => {
     seed({ filter: { deptId: '', from: '', to: '', q: '' } });
     click(act('home.study'));
     await settle();
-    expect(all('#source option').map((o) => o.getAttribute('value'))).toEqual(['mix', 'works', 'terms', 'pool']);
+    expect(all('#source option').map((option) => option.getAttribute('value'))).toEqual(['mix', 'works', 'terms', 'pool']);
   });
 
   it('mixed mode draws both works and terms', async () => {
     seed();
     await study('mix', 'flash');
     const seen = new Set<string>();
-    for (let i = 0; i < 40 && seen.size < 2; i++) {
+    for (let round = 0; round < 40 && seen.size < 2; round++) {
       seen.add(all('#card img').length ? 'works' : 'terms');
       click(act('study.next'));
       await settle();
@@ -957,7 +957,7 @@ describe('navigation and scoring', () => {
     seed({ works: [] });
     await study('terms', 'quiz');
     const answer = termInPrompt(text('#card .prompt'));
-    click(all('#choices button').find((b) => b.textContent === answer) ?? $('#choices button'));
+    click(all('#choices button').find((button) => button.textContent === answer) ?? find('#choices button'));
     click(act('study.back'));
     expect(view()).toBe('home');
     expect(text('#examList')).toContain('100% (1/1)');
@@ -969,6 +969,6 @@ describe('navigation and scoring', () => {
     click(act('study.reveal'));
     click(act('study.grade', 0));
     const saved = savedExams();
-    expect(saved[0]?.stats).toEqual({ terms: { c: 1, t: 1 } });
+    expect(saved[0]?.stats).toEqual({ terms: { correct: 1, total: 1 } });
   });
 });

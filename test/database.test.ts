@@ -17,7 +17,7 @@ const data: StudyData = {
       ],
       terms: [{ term: 'Sublime', def: 'awe mixed with terror', src: 'https://en.wikipedia.org/wiki/Sublime' }, { term: 'Impasto', def: '' }],
       filter: null,
-      stats: { works: { c: 3, t: 4 } },
+      stats: { works: { correct: 3, total: 4 } },
     },
     { name: 'Random pool', works: [], terms: [], filter: { deptId: '11', deptName: 'European Paintings', from: '1800', to: '1900', q: 'landscape' }, stats: {} },
   ],
@@ -72,13 +72,13 @@ it('refuses values of the wrong kind, and stores SQL-looking text as plain text'
   const exam = { name: 'Exam', works: [], terms: [], filter: null, stats: {} };
   const save = (changes: object): void => { database.save({ courses: [], exams: [{ ...exam, ...changes }] }); };
   expect(() => { save({ name: 42 }); }).toThrow('Exam name must be text');
-  expect(() => { save({ stats: { works: { c: '<b>1</b>', t: 2 } } }); }).toThrow('A score must be a count');
+  expect(() => { save({ stats: { works: { correct: '<b>1</b>', total: 2 } } }); }).toThrow('A score must be a count');
   expect(() => { save({ works: [{ id: {}, title: 'T', artist: 'A', date: '', img: '' }] }); }).toThrow('A work id');
   expect(database.load()).toBeNull(); // none of those was saved
 
   const hostile = "Robert'); DROP TABLE exams;--";
-  save({ name: hostile, stats: { works: { c: 1, t: 2 }, madeUp: { c: 9, t: 9 } } });
-  expect(database.load()?.exams[0]).toMatchObject({ name: hostile, stats: { works: { c: 1, t: 2 } } });
+  save({ name: hostile, stats: { works: { correct: 1, total: 2 }, madeUp: { correct: 9, total: 9 } } });
+  expect(database.load()?.exams[0]).toMatchObject({ name: hostile, stats: { works: { correct: 1, total: 2 } } });
   expect(database.load()?.exams[0]?.stats).not.toHaveProperty('madeUp'); // only known kinds of score are kept
 });
 

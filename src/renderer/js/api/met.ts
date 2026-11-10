@@ -55,30 +55,30 @@ export async function getObject(id: number): Promise<MetObject | null> {
 }
 
 /** Met object -> app "work" shape. */
-export const toWork = (o: MetObject): Work => ({
-  id: o.objectID,
-  title: o.title,
-  artist: o.artistDisplayName,
-  nationality: o.artistNationality ?? '',
-  date: o.objectDate,
-  img: o.primaryImageSmall,
-  src: o.objectURL,
+export const toWork = (metObject: MetObject): Work => ({
+  id: metObject.objectID,
+  title: metObject.title,
+  artist: metObject.artistDisplayName,
+  nationality: metObject.artistNationality ?? '',
+  date: metObject.objectDate,
+  img: metObject.primaryImageSmall,
+  src: metObject.objectURL,
 });
 
 /** Free-text search; returns up to `limit` works that have an image. */
 export async function searchWorks(query: string, limit = 10): Promise<Work[]> {
   const ids = (await searchIds({ q: query })).slice(0, limit);
   const objects = await Promise.all(ids.map(getObject));
-  return objects.filter((o): o is MetObject => o?.primaryImageSmall !== undefined && o.primaryImageSmall !== '').map(toWork);
+  return objects.filter((metObject): metObject is MetObject => metObject?.primaryImageSmall !== undefined && metObject.primaryImageSmall !== '').map(toWork);
 }
 
 /** First result for `title` whose artist name contains `surname`, or null. */
 export async function findWork(title: string, surname: string, tries = 5): Promise<Work | null> {
   try {
     for (const id of (await searchIds({ q: title })).slice(0, tries)) {
-      const o = await getObject(id);
-      if (o?.primaryImageSmall && surname && o.artistDisplayName.toLowerCase().includes(surname)) {
-        return toWork(o);
+      const metObject = await getObject(id);
+      if (metObject?.primaryImageSmall && surname && metObject.artistDisplayName.toLowerCase().includes(surname)) {
+        return toWork(metObject);
       }
     }
   } catch {

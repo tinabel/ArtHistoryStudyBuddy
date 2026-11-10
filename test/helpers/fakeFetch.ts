@@ -18,7 +18,7 @@ export function stubFetch(routes: Route[]): string[] {
     calls.push(target);
     const route = routes.find(([matcher]) => (typeof matcher === 'string' ? target.includes(matcher) : matcher.test(target)));
     if (!route) return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) } as Response);
-    const body: unknown = typeof route[1] === 'function' ? (route[1] as (u: string) => unknown)(target) : route[1];
+    const body: unknown = typeof route[1] === 'function' ? (route[1] as (url: string) => unknown)(target) : route[1];
     if (body instanceof Error) return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response);
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
   });

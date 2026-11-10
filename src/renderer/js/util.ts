@@ -1,18 +1,18 @@
 // Pure helpers. No DOM, no network.
 
 /** A random element. The array must not be empty. */
-export const pick = <T>(items: readonly T[]): T => items[Math.floor(Math.random() * items.length)] as T;
+export const pick = <Item>(items: readonly Item[]): Item => items[Math.floor(Math.random() * items.length)] as Item;
 
-export function shuffle<T>(items: readonly T[]): T[] {
-  const a = [...items];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j] as T, a[i] as T];
+export function shuffle<Item>(items: readonly Item[]): Item[] {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex] as Item, shuffled[index] as Item];
   }
-  return a;
+  return shuffled;
 }
 
-export const unique = <T>(items: readonly T[]): T[] => [...new Set(items)];
+export const unique = <Item>(items: readonly Item[]): Item[] => [...new Set(items)];
 
 /** Last word of a name, letters only, lowercased: "J.A.D. Ingres" -> "ingres". */
 export const surnameOf = (name: string): string =>

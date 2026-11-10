@@ -23,7 +23,7 @@ interface Entity {
 /** HTTP 4xx other than 429 (too many requests): Wikidata saying "no such thing". */
 const isClientError = (error: unknown): boolean => error instanceof Error && /^HTTP 4(?!29)\d\d/.test(error.message);
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms); });
+const sleep = (milliseconds: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, milliseconds); });
 
 // Wikidata drops requests under bursts, so calls run one at a time, spaced out, with one retry.
 let queue: Promise<unknown> = Promise.resolve();
@@ -45,26 +45,26 @@ function call<T>(params: Record<string, string>): Promise<T | undefined> {
 }
 
 const valuesOf = (entity: Entity, property: string): unknown[] =>
-  (entity.claims?.[property] ?? []).map((c) => c.mainsnak?.datavalue?.value);
+  (entity.claims?.[property] ?? []).map((claim) => claim.mainsnak?.datavalue?.value);
 
-const isRef = (v: unknown): v is { id: string } =>
-  typeof v === 'object' && v !== null && typeof (v as { id?: unknown }).id === 'string';
+const isRef = (value: unknown): value is { id: string } =>
+  typeof value === 'object' && value !== null && typeof (value as { id?: unknown }).id === 'string';
 
-const isText = (v: unknown): v is { text: string; language: string } =>
-  typeof v === 'object' && v !== null && typeof (v as { text?: unknown }).text === 'string';
+const isText = (value: unknown): value is { text: string; language: string } =>
+  typeof value === 'object' && value !== null && typeof (value as { text?: unknown }).text === 'string';
 
 async function getEntity(id: string, props: string): Promise<Entity | undefined> {
-  const r = await call<{ entities: Record<string, Entity | undefined> }>({
+  const response = await call<{ entities: Record<string, Entity | undefined> }>({
     action: 'wbgetentities', ids: id, props, languages: 'en',
   });
-  return r?.entities[id];
+  return response?.entities[id];
 }
 
 async function findArtistId(name: string): Promise<string | null> {
-  const r = await call<{ search?: { id: string; description?: string }[] }>({
+  const response = await call<{ search?: { id: string; description?: string }[] }>({
     action: 'wbsearchentities', search: name, language: 'en', type: 'item', limit: '8',
   });
-  return (r?.search ?? []).find((x) => ARTIST_DESCRIPTION.test(x.description ?? ''))?.id ?? null;
+  return (response?.search ?? []).find((candidate) => ARTIST_DESCRIPTION.test(candidate.description ?? ''))?.id ?? null;
 }
 
 const demonyms = new Map<string, string>(); // country id -> "French"
@@ -73,7 +73,7 @@ async function demonymOf(countryId: string): Promise<string> {
   const cached = demonyms.get(countryId);
   if (cached !== undefined) return cached;
   const country = await getEntity(countryId, 'claims|labels');
-  const english = country ? valuesOf(country, 'P1549').find((v) => isText(v) && v.language === 'en') : undefined;
+  const english = country ? valuesOf(country, 'P1549').find((value) => isText(value) && value.language === 'en') : undefined;
   const demonym = isText(english) ? english.text : (country?.labels?.en?.value ?? '');
   demonyms.set(countryId, demonym);
   return demonym;
@@ -87,7 +87,7 @@ export interface ArtistInfo {
 }
 
 /** "post-impressionism" -> "Post-Impressionism" (Wikidata labels are lower-case). */
-const toMovementCase = (label: string): string => label.replace(/(^|[\s-])(\p{L})/gu, (_m, sep: string, c: string) => sep + c.toUpperCase());
+const toMovementCase = (label: string): string => label.replace(/(^|[\s-])(\p{L})/gu, (_match, separator: string, letter: string) => separator + letter.toUpperCase());
 
 /** "French Realism" -> "Realism": courses name the movement, not the country. */
 const DEMONYM_PREFIX = /^(French|German|American|British|English|Dutch|Spanish|Italian|Flemish|Russian|Danish|Swiss|Belgian|Austrian|Norwegian|Swedish|Mexican|Japanese|Chinese|Polish|Czech)\s+/i;
@@ -106,9 +106,9 @@ async function movementLabel(id: string): Promise<string> {
 
 /** The artist's movement (P135), preferring a claim marked "preferred" and ignoring deprecated ones. */
 function movementOf(person: Entity): { id: string } | undefined {
-  const claims = (person.claims?.P135 ?? []).filter((c) => c.rank !== 'deprecated');
-  const ordered = [...claims.filter((c) => c.rank === 'preferred'), ...claims.filter((c) => c.rank !== 'preferred')];
-  return ordered.map((c) => c.mainsnak?.datavalue?.value).find(isRef);
+  const claims = (person.claims?.P135 ?? []).filter((claim) => claim.rank !== 'deprecated');
+  const ordered = [...claims.filter((claim) => claim.rank === 'preferred'), ...claims.filter((claim) => claim.rank !== 'preferred')];
+  return ordered.map((claim) => claim.mainsnak?.datavalue?.value).find(isRef);
 }
 
 /** Nationality and art movement for `name`, from Wikidata. Unknown parts are ''. Throws if Wikidata can't be reached. */
@@ -138,11 +138,11 @@ export async function workMovementOf(title: string, artist: string): Promise<str
   const surname = surnameOf(artist);
   const cleanTitle = title.replace(/\(.*?\)/g, ' ').trim();
   if (!surname || !cleanTitle) return '';
-  const r = await call<{ search?: { id: string; description?: string }[] }>({
+  const response = await call<{ search?: { id: string; description?: string }[] }>({
     action: 'wbsearchentities', search: cleanTitle, language: 'en', type: 'item', limit: '10',
   });
-  const hit = (r?.search ?? []).find((x) => {
-    const description = (x.description ?? '').toLowerCase();
+  const hit = (response?.search ?? []).find((candidate) => {
+    const description = (candidate.description ?? '').toLowerCase();
     return WORK_DESCRIPTION.test(description) && description.includes(surname);
   });
   if (!hit) return '';
