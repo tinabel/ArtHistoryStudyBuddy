@@ -13,7 +13,7 @@ export async function findWorkImage({ artist, title }: { artist: string; title: 
   if (fromCommons) return fromCommons;
 
   const fromMet = await met.findWork(cleanTitle, surname);
-  if (fromMet) return { img: fromMet.img, src: fromMet.src ?? '' };
+  if (fromMet) return { image: fromMet.image, source: fromMet.source ?? '' };
 
-  return { img: '', src: '' };
+  return { image: '', source: '' };
 }

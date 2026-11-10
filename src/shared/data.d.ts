@@ -10,15 +10,15 @@ export interface Work {
   /** Art movement, e.g. "Impressionism". undefined = not looked up yet; '' = unknown. */
   movement?: string;
   date: string;
-  img: string;
-  src?: string;
+  image: string;
+  source?: string;
 }
 
 export interface Term {
   term: string;
   /** May be empty (flashcard-only term). */
-  def: string;
-  src?: string;
+  definition: string;
+  source?: string;
 }
 
 export interface Filter {

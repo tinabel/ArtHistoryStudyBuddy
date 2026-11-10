@@ -56,7 +56,7 @@ describe('pickRandomWork', () => {
   it('returns a work with the Met details', async () => {
     stubFetch(metWith(1, [7], { 7: object(7) }));
     expect(await pickRandomWork(filter('random-shape'))).toEqual({
-      id: 7, title: 'T7', artist: 'Artist', nationality: 'Dutch', date: '1650', img: 'i7.jpg', src: 'https://met/7',
+      id: 7, title: 'T7', artist: 'Artist', nationality: 'Dutch', date: '1650', image: 'i7.jpg', source: 'https://met/7',
     });
   });
 

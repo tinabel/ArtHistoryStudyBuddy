@@ -35,20 +35,20 @@ export function showEditButton(): void {
 }
 
 /** The image the open form would save: set by "Find automatically", a chosen file or Remove. */
-let editImage: WorkImage = { img: '', src: '' };
+let editImage: WorkImage = { image: '', source: '' };
 
 const editField = (id: string, label: string, value: string | undefined): string =>
   `<label class="field">${label}<input type="text" id="${id}" value="${escapeHtml(value)}"></label>`;
 
-const previewHtml = (image: WorkImage): string =>
-  image.img ? `<img src="${escapeHtml(image.img)}" alt="">` : '<span class="small">No image</span>';
+const previewHtml = (picture: WorkImage): string =>
+  picture.image ? `<img src="${escapeHtml(picture.image)}" alt="">` : '<span class="small">No image</span>';
 
-const imageUrlFor = (image: WorkImage): string => (image.img.startsWith('https://') ? image.img : '');
+const imageUrlFor = (picture: WorkImage): string => (picture.image.startsWith('https://') ? picture.image : '');
 
-const imageFieldsHtml = (image: WorkImage): string => `
+const imageFieldsHtml = (picture: WorkImage): string => `
   <div class="field">Image
-    <div id="editPreview" class="edit-preview">${previewHtml(image)}</div>
-    <input type="text" id="editImageUrl" aria-label="Image link" placeholder="Paste an image link (https://…)" value="${escapeHtml(imageUrlFor(image))}">
+    <div id="editPreview" class="edit-preview">${previewHtml(picture)}</div>
+    <input type="text" id="editImageUrl" aria-label="Image link" placeholder="Paste an image link (https://…)" value="${escapeHtml(imageUrlFor(picture))}">
     <div class="edit-actions">
       <button type="button" class="secondary" data-action="study.findImage">Find automatically</button>
       <button type="button" class="secondary" data-action="study.chooseImageFile">Choose a file…</button>
@@ -61,7 +61,7 @@ const imageFieldsHtml = (image: WorkImage): string => `
 function editFormHtml(card: Card): string {
   const fields = card.kind === 'terms'
     ? `${editField('editTerm', 'Term', card.term)}
-       <label class="field">Definition<textarea id="editDef" rows="4">${escapeHtml(card.def)}</textarea></label>`
+       <label class="field">Definition<textarea id="editDefinition" rows="4">${escapeHtml(card.definition)}</textarea></label>`
     : `${editField('editArtist', 'Artist', card.artist)}${editField('editNationality', 'Nationality', card.nationality)}
        ${editField('editTitle', 'Title', card.title)}${editField('editDate', 'Date', card.date)}
        ${editField('editMovement', 'Art movement', card.movement)}${imageFieldsHtml(editImage)}`;
@@ -76,7 +76,7 @@ function editFormHtml(card: Card): string {
 function openEdit(): void {
   const card = target?.card ?? null;
   if (!isEditable(card)) return;
-  if (card.kind !== 'terms') editImage = { img: card.img, src: card.src ?? '' };
+  if (card.kind !== 'terms') editImage = { image: card.image, source: card.source ?? '' };
   byId('editBar').innerHTML = '';
   byId('editArea').innerHTML = editFormHtml(card);
 }
@@ -93,10 +93,10 @@ const formIsOpen = (): boolean => document.querySelector('#editArea .edit-form')
 
 const imageMessage = (text: string): void => { byId('editImageMsg').textContent = text; };
 
-function setEditImage(image: WorkImage, message: string): void {
-  editImage = image;
-  byId('editPreview').innerHTML = previewHtml(image);
-  field('editImageUrl', HTMLInputElement).value = imageUrlFor(image);
+function setEditImage(picture: WorkImage, message: string): void {
+  editImage = picture;
+  byId('editPreview').innerHTML = previewHtml(picture);
+  field('editImageUrl', HTMLInputElement).value = imageUrlFor(picture);
   imageMessage(message);
 }
 
@@ -106,7 +106,7 @@ async function findImageAutomatically(): Promise<void> {
   imageMessage('Searching…');
   const found = await findWorkImage({ artist: inputValue('editArtist'), title });
   if (!formIsOpen()) return; // closed while searching
-  if (found.img) setEditImage(found, 'Found an image. Check it looks right, then Save.');
+  if (found.image) setEditImage(found, 'Found an image. Check it looks right, then Save.');
   else imageMessage('No image found. Paste a link or choose a file instead.');
 }
 
@@ -116,8 +116,8 @@ async function imageFileChosen(element: HTMLElement): Promise<void> {
   if (!file) return;
   imageMessage('Reading image…');
   try {
-    const img = await fileToDataUrl(file);
-    if (formIsOpen()) setEditImage({ img, src: '' }, 'Image added from your file. Save to keep it.');
+    const dataUrl = await fileToDataUrl(file);
+    if (formIsOpen()) setEditImage({ image: dataUrl, source: '' }, 'Image added from your file. Save to keep it.');
   } catch (error) {
     if (formIsOpen()) imageMessage(error instanceof Error ? error.message : 'Could not read that image.');
   } finally {
@@ -128,7 +128,7 @@ async function imageFileChosen(element: HTMLElement): Promise<void> {
 /** The image to save: a link typed into the box wins over the one chosen or found. */
 function imageToSave(): WorkImage {
   const typed = inputValue('editImageUrl');
-  return typed && typed !== editImage.img ? { img: typed, src: typed } : editImage;
+  return typed && typed !== editImage.image ? { image: typed, source: typed } : editImage;
 }
 
 // -- saving --
@@ -149,18 +149,18 @@ function saveEdit(): void {
   if (current.kind === 'terms') {
     const term = inputValue('editTerm');
     if (!term) { message('A term needs a name.'); return; }
-    const def = field('editDef', HTMLTextAreaElement).value.trim();
+    const definition = field('editDefinition', HTMLTextAreaElement).value.trim();
     const saved = owner.terms.find((term) => term.term === current.term);
-    if (saved) change(saved, { term, def });
-    change(current, { term, def, answer: term });
+    if (saved) change(saved, { term, definition });
+    change(current, { term, definition, answer: term });
   } else {
-    const image = imageToSave();
+    const picture = imageToSave();
     // Only check an image the user changed: one saved earlier must not block editing something else.
-    const problem = image.img === current.img ? null : validateImageUrl(image.img);
+    const problem = picture.image === current.image ? null : validateImageUrl(picture.image);
     if (problem) { message(problem); return; }
     const details = {
       artist: inputValue('editArtist'), nationality: inputValue('editNationality'), title: inputValue('editTitle'),
-      date: inputValue('editDate'), movement: inputValue('editMovement'), img: image.img, src: image.src,
+      date: inputValue('editDate'), movement: inputValue('editMovement'), image: picture.image, source: picture.source,
     };
     if (!details.title) { message('A work needs a title.'); return; }
     const saved = owner.works.find((work) => work.id === current.id);
@@ -191,5 +191,5 @@ export const actions: ActionMap = {
   'study.findImage': findImageAutomatically,
   'study.chooseImageFile': () => { field('editImageFile', HTMLInputElement).click(); },
   'study.imageFileChosen': imageFileChosen,
-  'study.removeImage': () => { setEditImage({ img: '', src: '' }, 'Image removed. Save to keep that.'); },
+  'study.removeImage': () => { setEditImage({ image: '', source: '' }, 'Image removed. Save to keep that.'); },
 };

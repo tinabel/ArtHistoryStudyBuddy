@@ -50,10 +50,10 @@ export function parseWork(line: string): ParsedWork {
   return movement ? { ...work, movement } : work;
 }
 
-/** "Term: definition", "Term - definition", or bare "Term" -> { term, def } */
+/** "Term: definition", "Term - definition", or bare "Term" -> { term, definition } */
 export function parseTermLine(line: string): Term {
   const match = /^(.+?)\s*(?::|\s[—–-]\s)\s*(.+)$/.exec(line);
-  return match ? { term: (match[1] ?? '').trim(), def: (match[2] ?? '').trim() } : { term: line, def: '' };
+  return match ? { term: (match[1] ?? '').trim(), definition: (match[2] ?? '').trim() } : { term: line, definition: '' };
 }
 
 /**
@@ -92,11 +92,11 @@ export function parseTermLines(text: string): Term[] {
     .map((line): Term => {
       const colonIndex = line.indexOf(':');
       return colonIndex > 0
-        ? { term: line.slice(0, colonIndex).trim(), def: line.slice(colonIndex + 1).trim() }
-        : { term: line.trim(), def: '' };
+        ? { term: line.slice(0, colonIndex).trim(), definition: line.slice(colonIndex + 1).trim() }
+        : { term: line.trim(), definition: '' };
     })
     .filter((term) => term.term);
 }
 
 export const formatTermLines = (terms: readonly Term[]): string =>
-  terms.map((term) => `${term.term}: ${term.def}`).join('\n');
+  terms.map((term) => `${term.term}: ${term.definition}`).join('\n');
