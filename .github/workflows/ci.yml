@@ -31,6 +31,10 @@ jobs:
 
       - run: npm ci
 
+      # Fails if anything the app ships with has a known vulnerability (development tools are not shipped).
+      - name: Audit shipped dependencies
+        run: npm audit --omit=dev
+
       - name: Typecheck
         run: npm run typecheck
 
