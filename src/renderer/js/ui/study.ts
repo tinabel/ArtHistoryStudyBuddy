@@ -116,7 +116,7 @@ function questionHtml(c: Card): string {
 function interactionHtml(c: Card): string {
   if (c.choices) {
     return `<div id="choices">${c.choices.map((choice, i) =>
-      `<div><button type="button" class="sec choice" data-action="study.pick" data-i="${i}">${esc(choice)}</button></div>`).join('')}</div>`;
+      `<div><button type="button" class="secondary choice" data-action="study.pick" data-i="${i}">${esc(choice)}</button></div>`).join('')}</div>`;
   }
   const label = c.kind === 'terms' ? 'Definition' : 'Answer';
   return `<div id="answer"><button type="button" data-action="study.reveal">Show ${label}</button></div>`;
@@ -129,7 +129,7 @@ function cardHtml(c: Card): string {
       ${questionHtml(c)}${interactionHtml(c)}
       <div id="feedback"></div>
       <div id="editBar"></div>
-      <button type="button" class="sec" data-action="study.next">Next</button>
+      <button type="button" class="secondary" data-action="study.next">Next</button>
       <div id="editArea"></div>
     </div>
   </div>`;
@@ -138,7 +138,7 @@ function cardHtml(c: Card): string {
 const gradeButtonsHtml = (): string => answered ? '' : `
   <div id="selfgrade">
     <button type="button" data-action="study.grade" data-ok="true">Got it</button>
-    <button type="button" class="del" data-action="study.grade" data-ok="false">Missed</button>
+    <button type="button" class="danger" data-action="study.grade" data-ok="false">Missed</button>
   </div>`;
 
 const workDetails = (c: WorkCard): string =>

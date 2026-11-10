@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "package": "npm run build && electron-packager . \"Art History Study Buddy\" --platform=darwin --out=dist --overwrite --icon=assets/icon.icns --ignore=\"^/(ArtStudyBuddy|\\.github|dist|src|test|scripts|coverage|tsconfig.*|jest.config.cjs|eslint.config.mjs|sample-exam.md)\"",
+    "package": "npm run build && electron-packager . \"Art History Study Buddy\" --platform=darwin --out=dist --overwrite --icon=assets/icon.icns --ignore=\"^/(\\.claude|\\.github|dist|src|test|scripts|coverage|tsconfig.*|jest.config.cjs|eslint.config.mjs|sample-exam.md)\"",
     "dist": "npm run package && node scripts/make-dmg.mjs",
     "check:apis": "node scripts/check-apis.mjs"
   },

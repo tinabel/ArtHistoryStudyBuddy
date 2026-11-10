@@ -22,8 +22,8 @@ export function render(): void {
         </div>
         <div>
           <button type="button" data-action="home.study" data-i="${i}">Study</button>
-          <button type="button" class="sec" title="Reset scores" data-action="home.reset" data-i="${i}">↺</button>
-          <button type="button" class="del" title="Delete exam" data-action="home.delete" data-i="${i}">✕</button>
+          <button type="button" class="secondary" title="Reset scores" data-action="home.reset" data-i="${i}">↺</button>
+          <button type="button" class="danger" title="Delete exam" data-action="home.delete" data-i="${i}">✕</button>
         </div>
       </div>`).join('')
     : '<div class="small">No exams yet. Add one.</div>';

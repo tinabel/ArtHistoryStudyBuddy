@@ -29,7 +29,7 @@ function renderWorks(): void {
   $('addedList').innerHTML = works.map((w, i) => resultRow({
     img: w.img,
     title: w.title,
-    button: `<button type="button" class="del" data-action="editor.removeWork" data-i="${i}">✕</button>`,
+    button: `<button type="button" class="danger" data-action="editor.removeWork" data-i="${i}">✕</button>`,
   })).join('');
 }
 

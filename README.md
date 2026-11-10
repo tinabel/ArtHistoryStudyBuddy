@@ -142,6 +142,25 @@ Dependencies point one way: `ui` → `quiz` / `store` / `services` → `api`. On
 
 Lookup failures follow one rule: the Wikidata client (`api/wikidata.ts`) returns `''` for "not on Wikidata" and throws when it can't be reached; `services/workInfo.ts` turns a throw into `null`. Nothing saves a `null` result, so the next study session asks again.
 
+### Styling
+
+All styles are in `src/renderer/styles.css`; the code contains no inline styles. Run `npm start` to see a change.
+
+- **Colours, corners, font:** edit the variables in section 1 ("Theme") at the top of the file. Every colour in the app comes from one of them, so changing `--color-button` restyles every main button.
+- **Overall size:** the `font-size` line at the end of the Theme block scales the whole interface.
+- **One part of the app:** the file is in numbered sections (page, helpers, controls, lists, study, edit details), listed at its top.
+
+| Class | Use |
+|---|---|
+| `button` (no class) | Main action |
+| `button.secondary` | Cancel, Next, Browse… |
+| `button.danger` | Delete, Missed |
+| `.small` | Hints, counts, status messages |
+| `.panel` | The rounded box each view sits in |
+| `.choice.right`, `.choice.wrong`, `.correct`, `.incorrect` | Added by the app when you answer (`ui/study.ts`) |
+
+Images may only load from `https:` and `data:` addresses, and fonts and stylesheets only from the app itself (the Content-Security-Policy in `index.html`). A web font needs to be added to `src/renderer/` and allowed there with `font-src 'self'`.
+
 ## Data sources
 
 [Met Museum Open Access API](https://metmuseum.github.io/), [Wikimedia Commons](https://commons.wikimedia.org), [Wikipedia](https://en.wikipedia.org), [Wikidata](https://www.wikidata.org).
