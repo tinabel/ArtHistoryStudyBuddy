@@ -88,6 +88,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   store.getExams().splice(0);
+  for (const name of [...store.getCourses()]) store.removeCourse(name);
   localStorage.clear();
   stubFetch([['/departments', { departments: [{ departmentId: 11, displayName: 'European Paintings' }] }]]);
   ($('#mode') as HTMLSelectElement).value = 'flash'; // the dropdown keeps its value between tests
@@ -123,6 +124,80 @@ describe('home', () => {
     click(act('home.delete'));
     expect(text('#examList')).toBe('No exams yet. Add one.');
     expect(store.getExams()).toHaveLength(0);
+  });
+});
+
+describe('classes', () => {
+  const addClass = (name: string): void => {
+    setValue('#newCourse', name);
+    click(act('home.addCourse'));
+  };
+  const headings = (): string[] => all('#examList h3').map((h) => h.textContent);
+
+  it('adds classes in order, ignoring blanks and duplicates', () => {
+    addClass('Art History 400: Indian and Southeast Asian Art');
+    addClass('Art History 101');
+    addClass('  ');
+    addClass('Art History 101');
+    expect(headings()).toEqual(['Art History 101', 'Art History 400: Indian and Southeast Asian Art']);
+    expect(text('#examList')).toContain('No exams in this class yet.');
+    expect(($('#newCourse') as HTMLInputElement).value).toBe('Art History 101'); // the duplicate stays for correcting
+  });
+
+  it("adds an exam to a class from that class's own button", () => {
+    addClass('Art History 101');
+    addClass('Art History 200: Western Romanticism');
+    click(act('home.new', 1)); // the second class's "+ Add Exam"
+    expect(($('#exCourse') as HTMLSelectElement).value).toBe('Art History 200: Western Romanticism');
+    setValue('#exName', 'Romanticism Midterm');
+    setValue('#exTerms', 'Sublime: awe mixed with terror');
+    click(act('editor.save'));
+    expect(store.getExams()[0]?.course).toBe('Art History 200: Western Romanticism');
+    expect(text('#examList .course:nth-of-type(2)')).toContain('Romanticism Midterm');
+    expect(text('#examList .course:nth-of-type(1)')).not.toContain('Romanticism Midterm');
+  });
+
+  it('hides the class choice in the editor until a class exists', () => {
+    click(act('home.new'));
+    expect($('#exCourse').hidden).toBe(true);
+    click(act('editor.cancel'));
+    addClass('Art History 101');
+    click(act('home.new', 1)); // the general "+ Add Exam" under the list
+    expect($('#exCourse').hidden).toBe(false);
+    expect(($('#exCourse') as HTMLSelectElement).value).toBe('');
+  });
+
+  it('moves an exam between classes, and lists exams outside any class under "No class"', () => {
+    seed();
+    expect(all('[data-change="home.setCourse"]')).toHaveLength(0); // nothing to move to yet
+    addClass('Art History 101');
+    expect(headings()).toEqual(['Art History 101', 'No class']);
+    choose('[data-change="home.setCourse"]', 'Art History 101');
+    expect(store.getExams()[0]?.course).toBe('Art History 101');
+    expect(headings()).toEqual(['Art History 101']);
+    expect(text('#examList .course')).toContain('Nineteenth Century');
+    choose('[data-change="home.setCourse"]', '');
+    expect(store.getExams()[0]?.course).toBeUndefined();
+  });
+
+  it('removing a class keeps its exams', () => {
+    seed({ course: 'Art History 101' });
+    expect(headings()).toEqual(['Art History 101']);
+    click(act('home.removeCourse'));
+    expect(headings()).toEqual([]);
+    expect(text('#examList')).toContain('Nineteenth Century');
+    expect(store.getExams()[0]?.course).toBeUndefined();
+  });
+
+  it('study, reset and delete act on the right exam inside a class', async () => {
+    seed({ name: 'Loose Exam' });
+    seed({ name: 'Class Exam', course: 'Art History 101' });
+    click(act('home.study')); // the class section comes first
+    await settle();
+    expect(text('#studyTitle')).toBe('Class Exam');
+    click(act('study.back'));
+    click(act('home.delete'));
+    expect(store.getExams().map((e) => e.name)).toEqual(['Loose Exam']);
   });
 });
 

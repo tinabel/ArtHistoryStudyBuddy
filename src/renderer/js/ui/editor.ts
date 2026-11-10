@@ -2,7 +2,7 @@
 import * as met from '../api/met.js';
 import { formatTermLines, parseTermLines } from '../markdown.js';
 import { importExam } from '../services/importer.js';
-import { addExam, makeExam } from '../store.js';
+import { addExam, getCourses, makeExam } from '../store.js';
 import type { Filter, Work } from '../types.js';
 import { indexOf, type ActionMap } from './actions.js';
 import { $, esc, field, resultRow } from './dom.js';
@@ -17,6 +17,7 @@ let departmentsLoaded = false;
 const input = (id: string): HTMLInputElement => field(id, HTMLInputElement);
 const termsBox = (): HTMLTextAreaElement => field('exTerms', HTMLTextAreaElement);
 const deptSelect = (): HTMLSelectElement => field('exDept', HTMLSelectElement);
+const courseSelect = (): HTMLSelectElement => field('exCourse', HTMLSelectElement);
 const say = (message: string): void => { $('editorMsg').textContent = message; };
 
 function addWork(work: Work): void {
@@ -54,7 +55,12 @@ async function loadDepartments(): Promise<void> {
   }
 }
 
-export function open(): void {
+/** Opens an empty form. `course` preselects the class the exam will go in ('' = none). */
+export function open(course = ''): void {
+  const courses = getCourses();
+  courseSelect().replaceChildren(new Option('No class', ''), ...courses.map((name) => new Option(name, name)));
+  courseSelect().value = course;
+  courseSelect().hidden = !courses.length;
   works = [];
   termSources = {};
   searchResults = [];
@@ -135,7 +141,7 @@ function save(): void {
   if (!works.length && !terms.length && !result.filter) { say('Add works, terms, or a random pool.'); return; }
 
   try {
-    addExam(makeExam({ name, works, terms, filter: result.filter }));
+    addExam(makeExam({ name, course: courseSelect().value, works, terms, filter: result.filter }));
   } catch {
     say('Could not save the exam (storage full or unavailable).');
     return;

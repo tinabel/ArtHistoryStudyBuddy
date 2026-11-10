@@ -61,6 +61,17 @@ Exams and scores are saved in `~/Library/Application Support/art-history-study`.
 
 Use ↺ on the home screen to reset an exam's scores.
 
+### Classes
+
+Group exams by class (for example *Art History 101* or *Art History 200: Western Romanticism*):
+
+- Type a name under the exam list and click **+ Add Class**. Classes are listed in order, so 101 comes before 200.
+- **+ Add Exam** beside a class name creates an exam in that class. The editor also has a class dropdown.
+- The dropdown on each exam moves it to another class, or to **No class**.
+- ✕ beside a class name removes the class only. Its exams are kept and move to **No class**.
+
+Classes are optional: with none, the home screen is a plain list of exams.
+
 ### Markdown import
 
 Type a file path (or use **Browse…**) in the exam editor. See [`sample-exam.md`](sample-exam.md).
@@ -126,7 +137,7 @@ src/
       app.ts           entry point: event dispatch, view registration
       ui/              DOM rendering and event handlers (home, editor, study, editDetails, router, dom helpers)
       quiz.ts          study logic: sources, cards, multiple-choice answers
-      store.ts         exam persistence and score keeping (localStorage)
+      store.ts         exams, classes and scores (localStorage)
       markdown.ts      pure parsing of markdown and term text
       textMask.ts      pure: hides a term inside its definition
       years.ts         pure: find the year in a date, make plausible wrong dates
@@ -157,6 +168,7 @@ All styles are in `src/renderer/styles.css`; the code contains no inline styles.
 | `button.danger` | Delete, Missed |
 | `.small` | Hints, counts, status messages |
 | `.panel` | The rounded box each view sits in |
+| `.course`, `.course-head` | One class on the home screen, and its name-and-buttons line |
 | `.choice.right`, `.choice.wrong`, `.correct`, `.incorrect` | Added by the app when you answer (`ui/study.ts`) |
 
 Images may only load from `https:` and `data:` addresses, and fonts and stylesheets only from the app itself (the Content-Security-Policy in `index.html`). A web font needs to be added to `src/renderer/` and allowed there with `font-src 'self'`.

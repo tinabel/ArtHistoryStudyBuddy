@@ -47,6 +47,8 @@ export interface Score {
 
 export interface Exam {
   name: string;
+  /** The class (course) it belongs to, e.g. "Art History 101". Absent = not in a class. */
+  course?: string;
   works: Work[];
   terms: Term[];
   filter: Filter | null;

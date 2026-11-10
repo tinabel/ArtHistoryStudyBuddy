@@ -128,6 +128,12 @@ a.source { color: var(--color-link); }
   gap: .5rem;
 }
 
+/* Home: one block per class, its name and buttons on one line above its exams */
+.course { margin-bottom: 1.2rem; }
+.course-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.course h3 { margin: .3rem 0; }
+.row select { max-width: 12rem; }
+
 /* Editor: thumbnail + text + button, for search results and added works */
 .result { display: flex; align-items: center; gap: .5rem; padding: .3rem 0; font-size: .85rem; }
 .result img, .result .thumb { width: var(--thumb-size); height: var(--thumb-size); object-fit: cover; margin: 0; }
