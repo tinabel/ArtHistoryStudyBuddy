@@ -18,7 +18,7 @@
     "@swc/jest": "^0.2.39",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.6",
-    "electron": "^33.0.0",
+    "electron": "^42.11.16",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
     "jest": "^30.5.2",
