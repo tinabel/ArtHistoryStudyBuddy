@@ -1,7 +1,7 @@
 // Turns a picture the user chooses into a small data: address that can be saved inside the exam.
 // Browser-only (FileReader, <canvas>), so it lives with the UI; tests replace it.
 
-const MAX_SIDE = 640; // pixels: plenty for a flashcard, small enough that many images fit in browser storage
+const MAX_SIDE = 640; // pixels: plenty for a flashcard, small enough to keep the database small
 const JPEG_QUALITY = 0.72;
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 

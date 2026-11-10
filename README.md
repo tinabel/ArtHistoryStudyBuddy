@@ -41,7 +41,9 @@ To build just the `.app` without the installer, run `npm run package`; it lands 
 
 An installer built on Apple Silicon only runs on Apple Silicon; build on an Intel Mac for an Intel installer.
 
-Exams and scores are saved in `~/Library/Application Support/art-history-study`. The installed app and `npm start` share that folder, so they see the same exams.
+Exams, classes and scores are saved in a SQLite database, `~/Library/Application Support/art-history-study/study.sqlite`. The installed app and `npm start` share that file, so they see the same exams. To back up or move your exams, copy that file while the app is closed.
+
+Earlier versions kept exams in the app's browser storage. The first time this version starts it copies them into the database; the old copy is left where it was.
 
 ## Usage
 
@@ -57,7 +59,7 @@ Exams and scores are saved in `~/Library/Application Support/art-history-study`.
      - **Terms** show the definition with the term blanked out of it.
    - After you answer (or reveal), **Edit details** lets you correct that work's artist, nationality, title, date and movement, or a term's name and definition. Edits are saved to the exam. A corrected nationality also applies to that artist's other works.
      - A work with no picture (or the wrong one) can be given one there: paste an `https://` image link, **Choose a file…** from your Mac (it is scaled down to 640 px and saved inside the exam, about 35 KB each), or **Find automatically** to search Wikimedia Commons and the Met again with the title and artist as you've corrected them. **Remove** clears it.
-     - Pictures are saved in the app's browser storage (about 5 MB in total). If that is full, the edit is undone and you're told; a link takes almost no room.
+     - Pictures you choose from your Mac are saved in the database with the exam. If saving ever fails, the edit is undone and you're told.
 
 Use ↺ on the home screen to reset an exam's scores.
 
@@ -125,11 +127,14 @@ Pull requests run typecheck, lint, tests and build in GitHub Actions (`.github/w
 ```
 src/
   main/            Electron main process (CommonJS)
+    database.ts      the SQLite database: tables, load, save, and checks on every value
     main.ts          creates the window
-    ipc.ts           file access the sandboxed page can't do itself
+    ipc.ts           what the sandboxed page can't do itself: read files, reach the database
     paths.ts         path normalisation (pure)
     preload.ts       exposes a typed window.api to the page
-  shared/api.d.ts  the window.api contract, shared by main and renderer
+  shared/          contracts shared by main and renderer
+    api.d.ts         window.api
+    data.d.ts        the shapes that get saved (exam, work, term…)
   renderer/        the page (ES modules, runs in the browser)
     index.html       markup only
     styles.css       styles only
@@ -137,7 +142,8 @@ src/
       app.ts           entry point: event dispatch, view registration
       ui/              DOM rendering and event handlers (home, editor, study, editDetails, router, dom helpers)
       quiz.ts          study logic: sources, cards, multiple-choice answers
-      store.ts         exams, classes and scores (localStorage)
+      store.ts         exams, classes and scores; loads and saves them through window.api
+      legacyStorage.ts read-only: exams from versions that used browser storage
       markdown.ts      pure parsing of markdown and term text
       textMask.ts      pure: hides a term inside its definition
       years.ts         pure: find the year in a date, make plausible wrong dates
@@ -149,9 +155,24 @@ test/              Jest tests (unit, plus jsdom UI tests)
 build/             compiled output (git-ignored)
 ```
 
-Dependencies point one way: `ui` → `quiz` / `store` / `services` → `api`. Only `ui` touches the DOM and only `store` touches `localStorage`.
+Dependencies point one way: `ui` → `quiz` / `store` / `services` → `api`. Only `ui` touches the DOM, only `store` loads and saves data, and only `main/database.ts` touches SQLite.
 
 Lookup failures follow one rule: the Wikidata client (`api/wikidata.ts`) returns `''` for "not on Wikidata" and throws when it can't be reached; `services/workInfo.ts` turns a throw into `null`. Nothing saves a `null` result, so the next study session asks again.
+
+### Saved data (SQLite)
+
+The database uses Node's built-in `node:sqlite`, so there is no extra package to install or rebuild. You can inspect it with any SQLite tool, for example `sqlite3 ~/Library/Application\ Support/art-history-study/study.sqlite .schema`.
+
+| Table | Holds |
+|---|---|
+| `courses` | Class names, in display order |
+| `exams` | One row per exam: name, class, random-art filter and scores (the last two as JSON) |
+| `works` | Each exam's works, one row each |
+| `terms` | Each exam's terms, one row each |
+
+- The page keeps the whole list in memory (`store.ts`) and every change saves all of it again in one transaction, so a failed save leaves the previous data intact.
+- To save a new field: add it to `src/shared/data.d.ts`, then to the table, the `INSERT` and the row-reading function in `src/main/database.ts`. An existing database also needs an `ALTER TABLE … ADD COLUMN` there.
+- SQL is only ever run with bound `?` parameters, and every value from the page is type-checked before it is stored.
 
 ### Styling
 

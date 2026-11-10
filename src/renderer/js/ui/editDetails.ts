@@ -137,7 +137,7 @@ function saveEdit(): void {
   if (!target || target.card.kind === 'pool') return;
   const { exam: owner, card: current, onSaved } = target;
   const message = (text: string): void => { $('editMsg').textContent = text; };
-  const undo: (() => void)[] = []; // put everything back if the browser refuses to save
+  const undo: (() => void)[] = []; // put everything back if saving fails
 
   /** Applies `values` to `target`, remembering how to undo it. */
   const change = <T extends object>(target: T, values: Partial<T>): void => {
@@ -177,7 +177,7 @@ function saveEdit(): void {
     saveExams();
   } catch {
     undo.reverse().forEach((revert) => { revert(); });
-    message("Couldn't save: the browser's storage is full or unavailable. A smaller image or an image link takes less room.");
+    message("Couldn't save your changes, so nothing was changed. Try again.");
     return;
   }
   onSaved();

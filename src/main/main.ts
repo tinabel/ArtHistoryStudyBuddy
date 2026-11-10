@@ -1,6 +1,7 @@
-// Main process: creates the window. File access lives in ipc.ts.
+// Main process: opens the database and creates the window. File and database access for the page is in ipc.ts.
 import { app, BrowserWindow, shell } from 'electron';
 import * as path from 'node:path';
+import { openDatabase } from './database.js';
 import { registerIpc } from './ipc.js';
 
 function createWindow(): void {
@@ -23,7 +24,8 @@ function createWindow(): void {
   void win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 }
 
-registerIpc();
+// Exams and classes live in one file in the app's data folder (~/Library/Application Support/art-history-study).
+registerIpc(openDatabase(path.join(app.getPath('userData'), 'study.sqlite')));
 void app.whenReady().then(() => {
   // The packaged app gets its icon from the .icns; this covers running from source (`npm start`).
   app.dock?.setIcon(path.join(__dirname, '..', '..', 'assets', 'icon.png'));

@@ -143,7 +143,7 @@ function save(): void {
   try {
     addExam(makeExam({ name, course: courseSelect().value, works, terms, filter: result.filter }));
   } catch {
-    say('Could not save the exam (storage full or unavailable).');
+    say('Could not save the exam. Nothing was changed.');
     return;
   }
   go('home');

@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import type * as Store from '../src/renderer/js/store.js';
 import type { Exam, Term, Work } from '../src/renderer/js/types.js';
 import { fileToDataUrl } from '../src/renderer/js/ui/image.js';
+import { fakeDatabase } from './helpers/fakeDatabase.js';
 import { restoreFetch, stubFetch } from './helpers/fakeFetch.js';
 
 // Resizing needs a real <canvas>, which jsdom lacks; the file-to-thumbnail step is replaced here and checked in Electron.
@@ -15,6 +16,9 @@ jest.mock('../src/renderer/js/ui/image.js', () => ({ fileToDataUrl: jest.fn() })
 jest.setTimeout(20_000);
 
 let store: typeof Store;
+const database = fakeDatabase();
+/** The exams as last saved to the (fake) database. */
+const savedExams = (): Exam[] => database.saved?.exams ?? [];
 let go: (view: 'home' | 'editor' | 'study') => void;
 
 // ---- helpers ----
@@ -79,7 +83,7 @@ async function study(sourceValue: string, mode: 'flash' | 'quiz'): Promise<void>
 beforeAll(async () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'index.html'), 'utf8');
   document.body.innerHTML = (/<body>([\s\S]*)<\/body>/.exec(html)?.[1] ?? '').replace(/<script[\s\S]*?<\/script>/g, '');
-  window.api = { readMd: jest.fn(), pickMd: jest.fn() };
+  window.api = { readMd: jest.fn(), pickMd: jest.fn(), ...database };
   stubFetch([['/departments', { departments: [{ departmentId: 11, displayName: 'European Paintings' }] }]]);
   await import('../src/renderer/js/app.js');
   store = await import('../src/renderer/js/store.js');
@@ -89,7 +93,7 @@ beforeAll(async () => {
 beforeEach(() => {
   store.getExams().splice(0);
   for (const name of [...store.getCourses()]) store.removeCourse(name);
-  localStorage.clear();
+  database.saved = null;
   stubFetch([['/departments', { departments: [{ departmentId: 11, displayName: 'European Paintings' }] }]]);
   ($('#mode') as HTMLSelectElement).value = 'flash'; // the dropdown keeps its value between tests
   go('home');
@@ -236,7 +240,7 @@ describe('editor', () => {
       { term: 'Realism', def: 'art of everyday life', src: '' },
       { term: 'Sublime', def: '', src: '' },
     ]);
-    expect(JSON.parse(localStorage.getItem('exams') ?? '[]')).toHaveLength(1);
+    expect(savedExams()).toHaveLength(1);
   });
 
   it('saves a random-art pool exam', () => {
@@ -495,7 +499,7 @@ describe('studying works', () => {
     click(act('study.reveal'));
     expect(text('#answer')).toContain('Legacy Painter (Legacyan)');
     expect(text('#answer')).toContain('Post-Impressionism');
-    const saved = (JSON.parse(localStorage.getItem('exams') ?? '[]') as Exam[])[0]?.works[0];
+    const saved = savedExams()[0]?.works[0];
     expect(saved).toMatchObject({ nationality: 'Legacyan', movement: 'Post-Impressionism' });
   });
 
@@ -515,7 +519,7 @@ describe('studying works', () => {
     ]);
     click(act('home.study'));
     await waitFor(() => store.getExams()[0]?.works[1]?.movement === 'Symbolism', 'background fill-in');
-    const saved = (JSON.parse(localStorage.getItem('exams') ?? '[]') as Exam[])[0]?.works[1];
+    const saved = savedExams()[0]?.works[1];
     expect(saved).toMatchObject({ nationality: 'Backgroundish', movement: 'Symbolism' });
   });
 });
@@ -524,7 +528,7 @@ describe('editing details', () => {
   const manet = (id: number, title: string, img: string): Work =>
     ({ id, title, artist: 'Edouard Manet', nationality: 'French', movement: 'Impressionism', date: '1863', img, src: '' });
   const input = (id: string): HTMLInputElement => $(`#${id}`) as HTMLInputElement;
-  const savedWorks = (): Work[] => (JSON.parse(localStorage.getItem('exams') ?? '[]') as Exam[])[0]?.works ?? [];
+  const savedWorks = (): Work[] => savedExams()[0]?.works ?? [];
 
   async function revealWork(): Promise<void> {
     await study('works', 'flash');
@@ -666,7 +670,7 @@ describe('editing details', () => {
     click(act('study.saveEdit'));
     expect(text('#answer')).toContain('Awe before overwhelming nature.');
     expect(store.getExams()[0]?.terms[0]).toMatchObject({ term: 'The Sublime', def: 'Awe before overwhelming nature.', src: 'https://en.wikipedia.org/wiki/Sublime' });
-    expect((JSON.parse(localStorage.getItem('exams') ?? '[]') as Exam[])[0]?.terms[0]?.term).toBe('The Sublime');
+    expect(savedExams()[0]?.terms[0]?.term).toBe('The Sublime');
   });
 
   it('will not save a term without a name', async () => {
@@ -716,7 +720,7 @@ describe('adding images', () => {
   const work = (over: Partial<Work> = {}): Work =>
     ({ id: 1, title: 'Olympia', artist: 'Edouard Manet', nationality: 'French', movement: 'Realism', date: '1863', img: '', src: '', ...over });
   const input = (id: string): HTMLInputElement => $(`#${id}`) as HTMLInputElement;
-  const savedWorks = (): Work[] => (JSON.parse(localStorage.getItem('exams') ?? '[]') as Exam[])[0]?.works ?? [];
+  const savedWorks = (): Work[] => savedExams()[0]?.works ?? [];
   const COMMONS_HIT: [string, unknown] = ['commons.wikimedia.org', { query: { pages: { a: {
     index: 1, title: 'File:Manet Olympia.jpg', imageinfo: [{ thumburl: 'https://upload.wikimedia.org/olympia-600.jpg', descriptionurl: 'https://commons.wikimedia.org/wiki/File:Manet_Olympia.jpg' }],
   } } } }];
@@ -870,15 +874,15 @@ describe('adding images', () => {
     expect(text('#editPreview')).toBe('No image'); // the next form starts from what is saved
   });
 
-  it('puts everything back and explains when the browser refuses to save', async () => {
+  it('puts everything back and explains when saving fails', async () => {
     await openForm(work(), work({ id: 2, title: 'The Fifer', date: '1866' }));
     const shown = $('#card img, #card h3').textContent;
     setValue('#editImageUrl', 'https://example.org/olympia.jpg');
     setValue('#editNationality', 'Parisian');
     setValue('#editMovement', 'Cubism');
 
-    const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    const saveData = jest.spyOn(window.api, 'saveData').mockImplementation(() => {
+      throw new Error('database or disk is full');
     });
     click(act('study.saveEdit'));
     expect(text('#editMsg')).toMatch(/^Couldn't save/);
@@ -886,8 +890,8 @@ describe('adding images', () => {
     for (const w of store.getExams()[0]!.works) expect(w).toMatchObject({ img: '', nationality: 'French', movement: 'Realism' });
     expect($('#card img, #card h3').textContent).toBe(shown);
 
-    setItem.mockRestore();
-    click(act('study.saveEdit')); // and it works once there is room again
+    saveData.mockRestore();
+    click(act('study.saveEdit')); // and it works once saving does
     expect(savedWorks().every((w) => w.nationality === 'Parisian')).toBe(true);
     expect(all('.edit-form')).toHaveLength(0);
   });
@@ -959,12 +963,12 @@ describe('navigation and scoring', () => {
     expect(text('#examList')).toContain('100% (1/1)');
   });
 
-  it('scores persist in localStorage', async () => {
+  it('scores are saved', async () => {
     seed({ works: [] });
     await study('terms', 'flash');
     click(act('study.reveal'));
     click(act('study.grade', 0));
-    const saved = JSON.parse(localStorage.getItem('exams') ?? '[]') as Exam[];
+    const saved = savedExams();
     expect(saved[0]?.stats).toEqual({ terms: { c: 1, t: 1 } });
   });
 });
