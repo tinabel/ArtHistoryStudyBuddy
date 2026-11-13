@@ -14,7 +14,7 @@ export function shuffle<Item>(items: readonly Item[]): Item[] {
 
 export const unique = <Item>(items: readonly Item[]): Item[] => [...new Set(items)];
 
-const PARTIAL_VIEW = /\b(details?|fragments?|cropp?ed|crop|close-?up|sketch|study for)\b/i;
+const PARTIAL_VIEW = /\b(details?|fragments?|cropp?ed|crop|close ?up|sketch|study for)\b/i;
 
 /** False when a title or file name says the picture shows only part of a work, or a preparatory version of it. */
 export const showsWholeWork = (titleOrFileName: string): boolean => !PARTIAL_VIEW.test(titleOrFileName.replace(/[_-]+/g, ' '));

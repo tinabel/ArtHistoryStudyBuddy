@@ -49,7 +49,7 @@ Earlier versions kept exams in the app's browser storage. The first time this ve
 
 1. **+ Add Exam**, then name it.
 2. Add content:
-   - **Must Know Works:** search the Met and click Add, or import a markdown file.
+   - **Must Know Works:** search and click Add, or import a markdown file. Tick the places to search: the Met, the Art Institute of Chicago, the Cleveland Museum of Art and Wikipedia (which covers works kept elsewhere, and architecture). Results from all ticked places are mixed together, whole works before details and sketches, and show where each came from. A place that can't be reached is named under the box.
    - **Must Know Terms:** one per line as `term: definition`, or import a markdown file.
    - **Random art pool (optional):** pull random Met art by department and year range.
 3. **Save Exam**, then **Study**. Choose Flashcard or Quiz, and Works, Terms, or mixed.
@@ -109,13 +109,17 @@ Type a file path (or use **Browse…**) in the exam editor. See [`sample-exam.md
 | `npm run lint` | ESLint with `typescript-eslint` (strict, type-checked) |
 | `npm test` | Run the Jest tests |
 | `npm run test:coverage` | Tests with a coverage report |
-| `npm run check:apis` | Live check that the Met, Wikimedia and Wikidata services still answer as the app expects (the tests stub the network, so they can't notice a service changing) |
+| `npm run check:apis` | Live check that the museum, Wikimedia and Wikidata services still answer as the app expects (the tests stub the network, so they can't notice a service changing) |
 | `npm run package` | Build and package the `.app` |
 | `npm run dist` | Package, then build the `.dmg` installer |
 
 Tests never touch the network: `fetch` is stubbed. UI tests run the real UI modules in jsdom.
 
 Pull requests run typecheck, lint, tests and build in GitHub Actions (`.github/workflows/ci.yml`).
+
+### Adding a place to search
+
+Write a client in `src/renderer/js/api/` with `searchWorks(query, limit)`, add one line to `WORK_SOURCES` in `services/workSearch.ts`, and allow its address under `connect-src` in the Content-Security-Policy in `src/renderer/index.html`. Add a line to `scripts/check-apis.mjs` too.
 
 ### Security
 
@@ -172,8 +176,8 @@ src/
       markdown.ts      pure parsing of markdown and term text
       textMask.ts      pure: hides a term inside its definition
       years.ts         pure: find the year in a date, make plausible wrong dates
-      services/        multi-step workflows: import, image lookup, work info (nationality, movement), random art
-      api/             one client per data source: Met, Wikimedia Commons, Wikipedia, Wikidata
+      services/        multi-step workflows: import, image lookup, work search across sources, work info (nationality, movement), random art
+      api/             one client per data source: Met, Art Institute of Chicago, Cleveland, Wikimedia Commons, Wikipedia, Wikidata
       data/            fallback quiz answers (famous artists, titles, movements)
       types.ts, util.ts
 test/              Jest tests (unit, plus jsdom UI tests)
@@ -225,7 +229,7 @@ Images may only load from `https:` and `data:` addresses, and fonts and styleshe
 
 ## Data sources
 
-[Met Museum Open Access API](https://metmuseum.github.io/), [Wikimedia Commons](https://commons.wikimedia.org), [Wikipedia](https://en.wikipedia.org), [Wikidata](https://www.wikidata.org).
+[Met Museum Open Access API](https://metmuseum.github.io/), [Art Institute of Chicago API](https://api.artic.edu/docs), [Cleveland Museum of Art Open Access API](https://openaccess-api.clevelandart.org), [Wikimedia Commons](https://commons.wikimedia.org), [Wikipedia](https://en.wikipedia.org), [Wikidata](https://www.wikidata.org).
 
 ## License
 
