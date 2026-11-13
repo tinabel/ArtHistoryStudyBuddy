@@ -5,10 +5,14 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { StudyData } from '../shared/data.js';
 import type { Database } from './database.js';
-import { normalizePath } from './paths.js';
+import { isInsideFolder, normalizePath } from './paths.js';
 
 const IMPORT_EXTENSIONS = new Set(['.md', '.markdown', '.txt']);
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+const IMAGE_TYPES: Readonly<Record<string, string>> = {
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp',
+};
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 /** The app's own page (index.html). Set by `registerIpc`; calls from anywhere else are refused. */
 let trustedPageFile = '';
@@ -60,6 +64,23 @@ export function registerIpc(database: Database, pageFile: string): void {
     if (!info.isFile()) throw new Error('Not a regular file');
     if (info.size > MAX_IMPORT_BYTES) throw new Error('File is too large');
     return fs.promises.readFile(file, 'utf8');
+  });
+
+  // A picture named inside a markdown file. Same care as above, and it must sit beside the file or below it, so a
+  // file someone else wrote can't make the app read pictures from elsewhere on the disk.
+  ipcMain.handle('read-image', async (event, markdownPath: unknown, imagePath: unknown) => {
+    checkSender(event);
+    if (typeof markdownPath !== 'string' || typeof imagePath !== 'string') throw new Error('Invalid path');
+    const folder = path.dirname(await fs.promises.realpath(normalizePath(markdownPath)));
+    const typed = normalizePath(imagePath);
+    const file = await fs.promises.realpath(path.resolve(folder, typed));
+    const mimeType = IMAGE_TYPES[path.extname(file).toLowerCase()];
+    if (!mimeType) throw new Error('Only .jpg, .png, .gif and .webp pictures can be imported.');
+    if (!isInsideFolder(file, folder)) throw new Error('The picture must be in the same folder as the file, or inside it.');
+    const info = await fs.promises.stat(file);
+    if (!info.isFile()) throw new Error('Not a regular file');
+    if (info.size > MAX_IMAGE_BYTES) throw new Error('That picture is too large (over 15 MB).');
+    return { bytes: new Uint8Array(await fs.promises.readFile(file)), mimeType };
   });
 
   ipcMain.handle('pick-md', async (event) => {

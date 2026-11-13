@@ -13,6 +13,8 @@ function callSync(channel: string, ...args: unknown[]): unknown {
 
 const api: StudyApi = {
   readMd: (path) => ipcRenderer.invoke('read-md', path) as Promise<string>,
+  readImage: (markdownPath, imagePath) =>
+    ipcRenderer.invoke('read-image', markdownPath, imagePath) as Promise<{ bytes: Uint8Array<ArrayBuffer>; mimeType: string }>,
   pickMd: () => ipcRenderer.invoke('pick-md') as Promise<string | null>,
   loadData: () => callSync('data-load') as StudyData | null,
   saveData: (data) => { callSync('data-save', data); },
