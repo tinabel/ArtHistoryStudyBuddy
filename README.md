@@ -90,6 +90,14 @@ Type a file path (or use **Browse…**) in the exam editor. See [`sample-exam.md
 ```
 
 - Works get images from Wikimedia Commons, then the Met. Some may have no image.
+- **Or give the picture yourself** with markdown image syntax on the work's line: a link, or a file path relative to the markdown file (the picture must be in the same folder or below it; `.jpg`, `.png`, `.gif`, `.webp`). A path with spaces goes in angle brackets. Pictures from files are scaled down and saved inside the exam. If one can't be used, the app searches as usual and tells you.
+
+  ```md
+  - Claude Monet, Water Lilies, 1906 ![](https://example.org/lilies.jpg)
+  - Edgar Degas, The Dance Class, 1874 ![](pictures/dance-class.png)
+  - Giotto, Lamentation, 1305 ![](<my pictures/lamentation.jpg>)
+  ```
+- In the exam editor, each added work has an **Image link** box: paste an `https://` link to set or replace its picture (empty = no image).
 - Terms without a definition are auto-filled from Wikipedia. Review them, since they can be generic or wrong.
 - Every work and term links to its source.
 - Each artist's nationality (e.g. "French") and each work's art movement come from Wikidata (the Met record, for nationality, when searching the Met). The movement is taken from the artwork's own Wikidata entry when it has one, otherwise from the artist's. Exams saved before these existed are filled in as you study.

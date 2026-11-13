@@ -167,6 +167,32 @@ describe('importExam', () => {
 
   it('returns empty content for an empty file', async () => {
     stubFetch([]);
-    expect(await importExam('')).toEqual({ title: '', terms: [], works: [], noImage: [] });
+    expect(await importExam('')).toEqual({ title: '', terms: [], works: [], noImage: [], badImage: [] });
+  });
+
+  describe('pictures given in the file', () => {
+    const markdown = [
+      '## Must Know Works',
+      '- Gustave Courbet, The Stone Breakers, 1849 ![](stone.jpg)',
+      '- Édouard Manet, Olympia, 1863 ![](https://example.org/olympia.jpg) (movement: Realism)',
+    ].join('\n');
+
+    it('uses the resolved picture instead of searching for one', async () => {
+      const calls = stubFetch([['wbsearchentities', { search: [] }]]);
+      const resolveImage = jest.fn((target: string) => Promise.resolve(`resolved:${target}`));
+      const result = await importExam(markdown, undefined, resolveImage);
+      expect(result.works.map((work) => work.image)).toEqual(['resolved:stone.jpg', 'resolved:https://example.org/olympia.jpg']);
+      expect(result.works[1]).toMatchObject({ title: 'Olympia', movement: 'Realism' });
+      expect(result.noImage).toEqual([]);
+      expect(result.badImage).toEqual([]);
+      expect(calls.some((call) => call.includes('commons.wikimedia.org'))).toBe(false);
+    });
+
+    it('searches instead, and reports the work, when the picture cannot be used', async () => {
+      stubFetch([commonsHit('File:Courbet Stone Breakers.jpg'), ['wbsearchentities', { search: [] }]]);
+      const result = await importExam(markdown.split('\n').slice(0, 2).join('\n'), undefined, () => Promise.reject(new Error('missing')));
+      expect(result.works[0]?.image).toBe('thumb.jpg');
+      expect(result.badImage).toEqual(['The Stone Breakers']);
+    });
   });
 });
