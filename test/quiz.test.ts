@@ -1,5 +1,5 @@
 import { availableQuestions, drawCard, isCardError, resolveKind, studySources } from '../src/renderer/js/quiz.js';
-import type { Card, Exam, Mode, Kind, Term, Work } from '../src/renderer/js/types.js';
+import type { Card, Exam, Mode, Kind, Reading, Term, Work } from '../src/renderer/js/types.js';
 import { restoreFetch, stubFetch } from './helpers/fakeFetch.js';
 
 afterEach(restoreFetch);
@@ -7,7 +7,9 @@ afterEach(restoreFetch);
 const term = (name: string, definition = `${name} is a thing.`): Term => ({ term: name, definition, source: 'https://example.org' });
 const work = (artist: string, title = `${artist} work`): Work =>
   ({ id: title, title, artist, nationality: 'French', date: '1800', image: 'i.png', source: 's' });
-const exam = (over: Partial<Exam> = {}): Exam => ({ name: 'E', works: [], terms: [], filter: null, stats: {}, ...over });
+const exam = (over: Partial<Exam> = {}): Exam => ({ name: 'E', works: [], terms: [], readings: [], filter: null, stats: {}, ...over });
+const reading = (title: string, excerpt = `${title} begins with a long sentence.`): Reading =>
+  ({ id: title, title, author: 'An Author', excerpt, source: 'https://example.org/read' });
 const FIVE_TERMS = ['Realism', 'Sublime', 'Japonisme', 'Primitivism', 'Orientalism'].map((name) => term(name));
 
 /** drawCard, failing the test if it returned an error. */
@@ -22,17 +24,50 @@ describe('studySources', () => {
     expect(studySources(exam())).toEqual([]);
     expect(studySources(exam({ works: [work('A')] })).map((source) => source.value)).toEqual(['works']);
     expect(studySources(exam({ terms: [term('A')] })).map((source) => source.value)).toEqual(['terms']);
+    expect(studySources(exam({ readings: [reading('A')] })).map((source) => source.label)).toEqual(['Readings']);
     expect(studySources(exam({ works: [work('A')], terms: [term('B')], filter: { deptId: '', from: '', to: '', q: '' } })).map((source) => source.value))
       .toEqual(['mix', 'works', 'terms', 'pool']);
+    expect(studySources(exam({ readings: [reading('R')], works: [work('A')] })).map((source) => source.label))
+      .toEqual(['All mixed', 'Readings', 'Artworks']);
   });
 });
 
 describe('resolveKind', () => {
-  it('passes plain sources through and splits "mix" between works and terms', () => {
-    expect(resolveKind('works')).toBe('works');
-    expect(resolveKind('pool')).toBe('pool');
-    const kinds = new Set(Array.from({ length: 80 }, () => resolveKind('mix')));
+  it('passes plain sources through and splits "mix" between the exam\'s own lists', () => {
+    const both = exam({ works: [work('A')], terms: [term('B')] });
+    expect(resolveKind('works', both)).toBe('works');
+    expect(resolveKind('pool', both)).toBe('pool');
+    const kinds = new Set(Array.from({ length: 80 }, () => resolveKind('mix', both)));
     expect([...kinds].sort()).toEqual(['terms', 'works']);
+    const three = new Set(Array.from({ length: 150 }, () => resolveKind('mix', exam({ works: [work('A')], terms: [term('B')], readings: [reading('C')] }))));
+    expect([...three].sort()).toEqual(['readings', 'terms', 'works']);
+  });
+});
+
+describe('reading cards', () => {
+  const readings = [reading('Ways of Seeing'), reading('The Painter of Modern Life'), reading('Orientalism'), reading('Art and Illusion')];
+
+  it('flashcard: shows title and author, with the excerpt as the answer', async () => {
+    const card = await draw(exam({ readings }), 'readings', 'flash');
+    expect(card).toMatchObject({ kind: 'readings', choices: null, source: 'https://example.org/read' });
+    expect(card.kind === 'readings' && card.excerpt).toContain('begins with a long sentence');
+  });
+
+  it('quiz: the excerpt hides the title, and the choices are four distinct titles that include the answer', async () => {
+    for (let round = 0; round < 20; round++) {
+      const card = await draw(exam({ readings }), 'readings', 'quiz');
+      if (card.kind !== 'readings') throw new Error('expected a reading card');
+      expect(card.excerpt).not.toContain(card.title);
+      expect(card.choices).toHaveLength(4);
+      expect(card.choices).toContain(card.answer);
+      expect(new Set(card.choices).size).toBe(4);
+    }
+  });
+
+  it('quiz skips readings without text, and says so when none have any', async () => {
+    const bare = exam({ readings: [reading('No Text', '')] });
+    expect(isCardError(await drawCard(bare, 'readings', 'quiz'))).toBe(true);
+    expect(isCardError(await drawCard(bare, 'readings', 'flash'))).toBe(false);
   });
 });
 
@@ -152,7 +187,7 @@ describe('work quiz questions', () => {
   it('every question has the right answer, and four distinct choices that include it', async () => {
     for (let round = 0; round < 120; round++) {
       const card = await draw(testExam, 'works', 'quiz');
-      if (card.kind === 'terms') throw new Error('expected a work card');
+      if (card.kind === 'terms' || card.kind === 'readings') throw new Error('expected a work card');
       const source = testExam.works.find((artwork) => artwork.id === card.id);
       expect(card.answer).toBe(factOf(source!, card.question));
       expect(card.choices).toHaveLength(4);

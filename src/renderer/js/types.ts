@@ -1,13 +1,23 @@
 // Shared data shapes. What gets saved is defined in shared/data.d.ts (the main process stores it);
 // the rest here only exists while the app runs.
-import type { Kind } from '../../shared/data.js';
+import type { Kind, Reading } from '../../shared/data.js';
 
-export type { Exam, Filter, Kind, Score, StudyData, Term, Work } from '../../shared/data.js';
+export type { Exam, Filter, Kind, Reading, Score, StudyData, Term, Work } from '../../shared/data.js';
 
 /** A picture and the page it came from ('' when there is none). */
 export interface WorkImage {
   image: string;
   source: string;
+}
+
+/**
+ * A reading found by a search. Some places give a summary straight away (`reading.excerpt`); for others the text
+ * has to be fetched from `textUrl` when the reading is added (see services/readings.ts).
+ */
+export interface ReadingCandidate {
+  reading: Reading;
+  /** An https address of the text itself, for when `reading.excerpt` is empty. */
+  textUrl?: string;
 }
 
 /** A study source choice; 'mix' alternates between works and terms. */
@@ -19,6 +29,17 @@ export interface TermCard {
   kind: 'terms';
   term: string;
   definition: string;
+  source?: string;
+  answer: string;
+  choices: string[] | null;
+}
+
+/** choices === null means flashcard. In a quiz the excerpt has the title hidden, and the choices are titles. */
+export interface ReadingCard {
+  kind: 'readings';
+  title: string;
+  author: string;
+  excerpt: string;
   source?: string;
   answer: string;
   choices: string[] | null;
@@ -43,7 +64,9 @@ export interface WorkCard {
   choices: string[] | null;
 }
 
-export type Card = TermCard | WorkCard;
+/** Cards whose facts can be corrected with "Edit details". */
+export type EditableCard = TermCard | WorkCard;
+export type Card = EditableCard | ReadingCard;
 export interface CardError {
   error: string;
 }

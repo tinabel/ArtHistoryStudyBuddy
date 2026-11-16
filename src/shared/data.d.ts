@@ -21,6 +21,19 @@ export interface Term {
   source?: string;
 }
 
+/** A text to read for the exam: a book, an article, a web page. */
+export interface Reading {
+  /** Unique within the exam: "gutenberg-84", "archive-<identifier>", "wikipedia-<page>" or "link-<address>". */
+  id: string;
+  title: string;
+  /** May be empty. */
+  author: string;
+  /** The opening of the text, or a summary of it: what the reading is reviewed from. May be empty. */
+  excerpt: string;
+  /** Where to read all of it: an https address, or '' when there is none. */
+  source: string;
+}
+
 export interface Filter {
   deptId: string;
   deptName?: string;
@@ -29,8 +42,8 @@ export interface Filter {
   q: string;
 }
 
-/** works / terms: the exam's own lists. pool: random Met art from the exam's filter. */
-export type Kind = 'works' | 'terms' | 'pool';
+/** works / terms / readings: the exam's own lists. pool: random Met art from the exam's filter. */
+export type Kind = 'works' | 'terms' | 'readings' | 'pool';
 
 export interface Score {
   correct: number;
@@ -43,6 +56,7 @@ export interface Exam {
   course?: string;
   works: Work[];
   terms: Term[];
+  readings: Reading[];
   filter: Filter | null;
   stats: Partial<Record<Kind, Score>>;
 }

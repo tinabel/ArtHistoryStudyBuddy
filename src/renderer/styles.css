@@ -143,6 +143,11 @@ a.source { color: var(--color-link); }
 .result .thumb { background: var(--color-control); border-radius: var(--radius); }
 .result .text { flex: 1; text-align: left; }
 
+/* Readings: an excerpt, and the list view with one fold-out per reading */
+.excerpt { text-align: left; line-height: 1.5; margin: .5rem 0; }
+.reading { padding: .5rem 0; border-bottom: 1px solid var(--color-control); text-align: left; }
+.reading summary { cursor: pointer; }
+
 /* ---------- 6. Study ---------- */
 
 /* Back button and the mode / source dropdowns */

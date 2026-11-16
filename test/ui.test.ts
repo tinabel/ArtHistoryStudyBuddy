@@ -83,7 +83,7 @@ async function study(sourceValue: string, mode: 'flash' | 'quiz'): Promise<void>
 beforeAll(async () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'index.html'), 'utf8');
   document.body.innerHTML = (/<body>([\s\S]*)<\/body>/.exec(html)?.[1] ?? '').replace(/<script[\s\S]*?<\/script>/g, '');
-  window.api = { readMd: jest.fn(), readImage: jest.fn(), pickMd: jest.fn(),...database };
+  window.api = { readMd: jest.fn(), readImage: jest.fn(), fetchText: jest.fn(), pickMd: jest.fn(),...database };
   stubFetch([['/departments', { departments: [{ departmentId: 11, displayName: 'European Paintings' }] }]]);
   await import('../src/renderer/js/app.js');
   store = await import('../src/renderer/js/store.js');
@@ -111,7 +111,7 @@ describe('home', () => {
 
   it('lists exams with counts, and shows a score once there is one', () => {
     const exam = seed();
-    expect(text('#examList')).toContain('3 works · 4 terms');
+    expect(text('#examList')).toContain('0 readings · 3 artworks · 4 terms');
     expect(text('#examList')).not.toContain('%');
     store.recordResult(exam, 'terms', true);
     store.recordResult(exam, 'terms', false);
@@ -219,7 +219,7 @@ describe('editor', () => {
     expect(text('#editorMsg')).toBe('Name required.');
     setValue('#exName', 'Midterm');
     click(act('editor.save'));
-    expect(text('#editorMsg')).toBe('Add works, terms, or a random pool.');
+    expect(text('#editorMsg')).toBe('Add readings, artworks, terms, or a random pool.');
     click('#useFilter');
     expect(find('#filterFields').hidden).toBe(false);
     setValue('#exFrom', '1400');
@@ -235,7 +235,7 @@ describe('editor', () => {
     click(act('editor.save'));
     expect(view()).toBe('home');
     expect(text('#examList')).toContain('Midterm');
-    expect(text('#examList')).toContain('0 works · 2 terms');
+    expect(text('#examList')).toContain('0 readings · 0 artworks · 2 terms');
     expect(store.getExams()[0]?.terms).toEqual([
       { term: 'Realism', definition: 'art of everyday life', source: '' },
       { term: 'Sublime', definition: '', source: '' },
@@ -1041,5 +1041,99 @@ describe('untrusted text', () => {
     await study('terms', 'flash');
     click(act('study.reveal'));
     expect(all('#card a')).toHaveLength(0);
+  });
+});
+
+describe('readings', () => {
+  const PARAGRAPH = 'This paragraph is long enough to count as real writing rather than a menu or a caption on a page.';
+  const readings = [
+    { id: 'r1', title: 'Ways of Seeing', author: 'John Berger', excerpt: 'Seeing comes before words. The child looks and recognizes.', source: 'https://example.org/wos' },
+    { id: 'r2', title: 'The Painter of Modern Life', author: 'Charles Baudelaire', excerpt: 'Modernity is the transient, the fleeting, the contingent.', source: '' },
+    { id: 'r3', title: 'Orientalism', author: 'Edward Said', excerpt: 'The Orient was almost a European invention.', source: 'https://example.org/orientalism' },
+    { id: 'r4', title: 'Art and Illusion', author: 'Ernst Gombrich', excerpt: '', source: '' },
+  ];
+
+  it('adds a reading from a search result (fetching its text) and from a pasted link, then saves them', async () => {
+    (window.api.fetchText as jest.Mock).mockImplementation((address: string) => {
+      if (address.includes('gutendex.com')) {
+        return Promise.resolve({ url: address, text: JSON.stringify({ results: [{ id: 84, title: 'Frankenstein', authors: [{ name: 'Shelley, Mary' }], formats: { 'text/plain; charset=utf-8': 'https://www.gutenberg.org/ebooks/84.txt.utf-8' } }] }) });
+      }
+      if (address.includes('84.txt.utf-8')) return Promise.resolve({ url: address, text: `x\n\n*** START OF THE PROJECT GUTENBERG EBOOK ***\n\n${'You will rejoice to hear that no disaster has accompanied the commencement. '.repeat(3)}` });
+      return Promise.resolve({ url: address, text: `<html><head><title>A Pasted Page</title></head><body><article><p>${PARAGRAPH}</p></article></body></html>` });
+    });
+    stubFetch([['archive.org', { response: { docs: [] } }], ['wikipedia.org', { query: { pages: {} } }], ['/departments', { departments: [] }]]);
+
+    click(act('home.new'));
+    setValue('#readingQ', 'frankenstein');
+    click(act('readings.search'));
+    await waitFor(() => text('#readingResults').includes('Frankenstein'), 'reading results');
+    expect(text('#readingResults')).toContain('Mary Shelley · Project Gutenberg');
+    click(act('readings.addResult'));
+    await waitFor(() => text('#readingCount') === '1', 'reading added');
+    expect(text('#readingList')).toContain('You will rejoice to hear');
+
+    setValue('#readingQ', 'https://example.org/page');
+    find('#readingQ').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await waitFor(() => text('#readingCount') === '2', 'link added');
+    expect(text('#readingMsg')).toContain('Added "A Pasted Page"');
+
+    setValue('#exName', 'With readings');
+    click(act('editor.save'));
+    expect(store.getExams()[0]?.readings.map((reading) => reading.title)).toEqual(['Frankenstein', 'A Pasted Page']);
+    expect(text('#examList')).toContain('2 readings');
+  });
+
+  it('says why a pasted link was refused', async () => {
+    (window.api.fetchText as jest.Mock).mockRejectedValue(new Error("Error invoking remote method 'fetch-text': Error: That address is not on the public internet."));
+    stubFetch([['/departments', { departments: [] }]]);
+    click(act('home.new'));
+    setValue('#readingQ', 'https://192.168.0.1/');
+    click(act('readings.search'));
+    await waitFor(() => text('#readingMsg') !== 'Reading the page...', 'answer');
+    expect(text('#readingMsg')).toBe('That address is not on the public internet.');
+    expect(text('#readingCount')).toBe('0');
+  });
+
+  it('flashcard: title and author first, then the excerpt with a link to read it', async () => {
+    seed({ works: [], terms: [], readings: [readings[0]!] });
+    await study('readings', 'flash');
+    expect(text('#card')).toContain('Ways of Seeing');
+    expect(text('#card')).toContain('John Berger');
+    expect(text('#card')).not.toContain('Seeing comes before words');
+    click(act('study.reveal'));
+    expect(text('#answer')).toContain('Seeing comes before words');
+    expect(find('#answer a').getAttribute('href')).toBe('https://example.org/wos');
+    expect(find('#answer a').textContent).toContain('Read it');
+    expect(all('[data-action="study.edit"]')).toHaveLength(0); // readings are not edited here
+  });
+
+  it('quiz: the excerpt without its title, four titles to choose from, and a score', async () => {
+    seed({ works: [], terms: [], readings });
+    await study('readings', 'quiz');
+    expect(all('#choices button')).toHaveLength(4);
+    expect(text('#card')).toContain('Which reading is this from?');
+    const prompt = text('#card .prompt');
+    const answer = readings.find((reading) => reading.excerpt && prompt.includes(reading.excerpt.split(' ').slice(2, 5).join(' ')));
+    const right = all('#choices button').find((button) => button.textContent === answer?.title);
+    expect(right).toBeDefined();
+    click(right!);
+    expect(text('#feedback')).toContain('Correct!');
+    expect(text('#score')).toContain('Session: 1 / 1');
+  });
+
+  it('the reading list view shows every reading, folds out its excerpt, and goes back', () => {
+    seed({ works: [], terms: [], readings });
+    click(act('home.readings'));
+    expect(find('#readingList').hidden).toBe(false);
+    expect(all('#readingListBody details')).toHaveLength(4);
+    expect(text('#readingListBody')).toContain('Seeing comes before words');
+    expect(all('#readingListBody a').map((link) => link.getAttribute('href'))).toEqual(['https://example.org/wos', 'https://example.org/orientalism']);
+    click(act('readingList.back'));
+    expect(view()).toBe('home');
+  });
+
+  it('shows no Readings button for an exam without readings', () => {
+    seed();
+    expect(all('[data-action="home.readings"]')).toHaveLength(0);
   });
 });

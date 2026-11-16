@@ -40,7 +40,7 @@ async function next(): Promise<void> {
   const ticket = ++drawId;
   answered = false;
   shown = null;
-  kind = resolveKind(sourceSelect().value as Source);
+  kind = resolveKind(sourceSelect().value as Source, currentExam);
   setCard('<div class="small">Loading...</div>');
   updateScore();
 
@@ -54,7 +54,7 @@ async function next(): Promise<void> {
     setCard(`<div class="small">${escapeHtml(drawn.error)}</div>`);
   } else {
     currentCard = drawn;
-    details.track({ exam: currentExam, card: drawn, onSaved: redrawAfterEdit });
+    details.track(drawn.kind === 'readings' ? null : { exam: currentExam, card: drawn, onSaved: redrawAfterEdit }); // readings aren't edited here
     setCard(cardHtml(drawn));
   }
 }
@@ -62,7 +62,7 @@ async function next(): Promise<void> {
 /** The card's facts were corrected in place: show the new image and redraw whatever answer is on screen. */
 function redrawAfterEdit(): void {
   const media = document.querySelector('.card-media');
-  if (currentCard && currentCard.kind !== 'terms' && media) media.innerHTML = mediaInnerHtml(currentCard);
+  if (currentCard && (currentCard.kind === 'works' || currentCard.kind === 'pool') && media) media.innerHTML = mediaInnerHtml(currentCard);
   if (shown?.kind === 'feedback') showFeedback(shown.correct);
   else if (shown?.kind === 'reveal') reveal();
 }
@@ -93,9 +93,10 @@ function mediaInnerHtml(card: WorkCard): string {
     : `<h3>${escapeHtml(card.title)}</h3><div class="small">(no image)</div>`;
 }
 
-function mediaHtml(card: Card): string {
-  return card.kind === 'terms' ? '' : `<div class="card-media">${mediaInnerHtml(card)}</div>`;
-}
+/** Only artworks have a picture to show beside the question. */
+const hasMedia = (card: Card): card is WorkCard => card.kind === 'works' || card.kind === 'pool';
+
+const mediaHtml = (card: Card): string => (hasMedia(card) ? `<div class="card-media">${mediaInnerHtml(card)}</div>` : '');
 
 const QUESTION_TEXT: Record<Question, string> = {
   artist: 'Who is the artist?',
@@ -105,6 +106,11 @@ const QUESTION_TEXT: Record<Question, string> = {
 };
 
 function questionHtml(card: Card): string {
+  if (card.kind === 'readings') {
+    return card.choices
+      ? `<div class="prompt excerpt">${escapeHtml(card.excerpt)}</div><div>Which reading is this from?</div>`
+      : `<h3 class="prompt">${escapeHtml(card.title)}</h3>${card.author ? `<div class="small">${escapeHtml(card.author)}</div>` : ''}`;
+  }
   if (card.kind === 'terms') {
     return card.choices
       ? `<div class="prompt">${escapeHtml(card.definition)}</div><div>Which term?</div>`
@@ -118,12 +124,12 @@ function interactionHtml(card: Card): string {
     return `<div id="choices">${card.choices.map((choice, choiceIndex) =>
       `<div><button type="button" class="secondary choice" data-action="study.pick" data-i="${choiceIndex}">${escapeHtml(choice)}</button></div>`).join('')}</div>`;
   }
-  const label = card.kind === 'terms' ? 'Definition' : 'Answer';
+  const label = { terms: 'Definition', readings: 'Excerpt', works: 'Answer', pool: 'Answer' }[card.kind];
   return `<div id="answer"><button type="button" data-action="study.reveal">Show ${label}</button></div>`;
 }
 
 function cardHtml(card: Card): string {
-  return `<div class="card-layout${card.kind === 'terms' ? '' : ' with-media'}">
+  return `<div class="card-layout${hasMedia(card) ? ' with-media' : ''}">
     ${mediaHtml(card)}
     <div class="card-body">
       ${questionHtml(card)}${interactionHtml(card)}
@@ -148,6 +154,7 @@ const artistLabel = (card: WorkCard): string => `${escapeHtml(card.artist || 'Un
 /** The answer first, then the rest of the work's citation (so the answer isn't repeated). */
 function answerSummary(card: Card): string {
   if (card.kind === 'terms') return escapeHtml(card.answer);
+  if (card.kind === 'readings') return `${escapeHtml(card.title)}${card.author ? ` — ${escapeHtml(card.author)}` : ''}`;
   const movement = card.movement ? ` · ${escapeHtml(card.movement)}` : '';
   switch (card.question) {
     case 'artist': return `${artistLabel(card)} — ${escapeHtml(card.title)}, ${escapeHtml(card.date)}${movement}`;
@@ -179,10 +186,12 @@ function record(correct: boolean): void {
 
 function reveal(): void {
   if (!currentCard) return;
-  const body = currentCard.kind === 'terms'
-    ? escapeHtml(currentCard.definition || '(no definition — edit exam to add)')
-    : `<strong>${artistLabel(currentCard)}</strong><br>${workDetails(currentCard)}`;
-  byId('answer').innerHTML = body + sourceLink(currentCard.source) + gradeButtonsHtml();
+  let body: string;
+  if (currentCard.kind === 'terms') body = escapeHtml(currentCard.definition || '(no definition — edit exam to add)');
+  else if (currentCard.kind === 'readings') body = `<div class="excerpt">${escapeHtml(currentCard.excerpt || '(no text saved — use the link to read it)')}</div>`;
+  else body = `<strong>${artistLabel(currentCard)}</strong><br>${workDetails(currentCard)}`;
+  const link = currentCard.kind === 'readings' ? sourceLink(currentCard.source, 'Read it') : sourceLink(currentCard.source);
+  byId('answer').innerHTML = body + link + gradeButtonsHtml();
   shown = { kind: 'reveal' };
   details.showEditButton();
 }
@@ -191,7 +200,7 @@ function showFeedback(correct: boolean): void {
   if (!currentCard) return;
   const feedback = byId('feedback');
   feedback.className = correct ? 'correct' : 'incorrect';
-  feedback.innerHTML = `${correct ? 'Correct! ' : 'Answer: '}${answerSummary(currentCard)}${sourceLink(currentCard.source)}`;
+  feedback.innerHTML = `${correct ? 'Correct! ' : 'Answer: '}${answerSummary(currentCard)}${sourceLink(currentCard.source, currentCard.kind === 'readings' ? 'Read it' : 'Source')}`;
   shown = { kind: 'feedback', correct };
 }
 

@@ -9,6 +9,8 @@ export interface StudyApi {
    * the picture must be in that file's folder or below it. Rejects for anything else (wrong type, too large...).
    */
   readImage: (markdownPath: string, imagePath: string) => Promise<{ bytes: Uint8Array<ArrayBuffer>; mimeType: string }>;
+  /** Downloads the text of a public https page (readings). Rejects with a message for anything else or on failure. */
+  fetchText: (address: string) => Promise<{ text: string; url: string }>;
   /** Show a file picker; resolves to the chosen path or null if cancelled. */
   pickMd: () => Promise<string | null>;
   /**

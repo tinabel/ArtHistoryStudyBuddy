@@ -29,8 +29,8 @@ function persist(): void {
   window.api.saveData({ courses, exams });
 }
 
-export const makeExam = ({ name, course, works = [], terms = [], filter = null }: Partial<Exam> & { name: string }): Exam =>
-  ({ name, ...(course ? { course } : {}), works, terms, filter, stats: {} });
+export const makeExam = ({ name, course, works = [], terms = [], readings = [], filter = null }: Partial<Exam> & { name: string }): Exam =>
+  ({ name, ...(course ? { course } : {}), works, terms, readings, filter, stats: {} });
 
 // ---- classes ----
 

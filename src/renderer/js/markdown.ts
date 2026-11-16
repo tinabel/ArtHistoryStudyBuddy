@@ -12,10 +12,19 @@ export interface ParsedWork {
   image?: string;
 }
 
+export interface ParsedReading {
+  title: string;
+  /** '' when the line gives none. */
+  author: string;
+  /** An https address written in the line, or ''. */
+  link: string;
+}
+
 export interface ParsedExam {
   title: string;
   terms: Term[];
   works: ParsedWork[];
+  readings: ParsedReading[];
 }
 
 export const stripMd = (text: string): string =>
@@ -60,6 +69,30 @@ export function parseWork(line: string): ParsedWork {
   return movement ? { ...work, movement } : work;
 }
 
+/**
+ * A line of the Readings section: "Title by Author", "Title, Author", "[Title](https://…)", "[Title](https://…), Author"
+ * or a bare https address. Trailing page references like "(pp. 3-20)" are dropped.
+ */
+export function parseReading(line: string): ParsedReading {
+  let rest = line.trim();
+  let link = '';
+  const linkMatch = /\[([^\]]*)\]\((https:\/\/[^)\s]+)\)/.exec(rest);
+  if (linkMatch) {
+    link = linkMatch[2] ?? '';
+    rest = rest.replace(linkMatch[0], linkMatch[1] ?? '');
+  } else {
+    const bare = /https:\/\/[^\s)>]+/.exec(rest);
+    if (bare) { link = bare[0]; rest = rest.replace(bare[0], ''); }
+  }
+  rest = stripMd(rest).replace(/\s*\((?:pp?|ch|chapters?)\.[^()]*\)\s*$/i, '').replace(/^[\s,:–—-]+|[\s,:–—-]+$/g, '');
+  const byAuthor = / by (.+)$/i.exec(rest);
+  if (byAuthor) return { title: rest.slice(0, byAuthor.index).trim(), author: (byAuthor[1] ?? '').trim(), link };
+  const comma = rest.lastIndexOf(','); // "Title, Author": the author is what follows the last comma
+  return comma > 0
+    ? { title: rest.slice(0, comma).trim(), author: rest.slice(comma + 1).trim(), link }
+    : { title: rest, author: '', link };
+}
+
 /** "Term: definition", "Term - definition", or bare "Term" -> { term, definition } */
 export function parseTermLine(line: string): Term {
   const match = /^(.+?)\s*(?::|\s[—–-]\s)\s*(.+)$/.exec(line);
@@ -71,8 +104,8 @@ export function parseTermLine(line: string): Term {
  * `# Title`, then `## ...Terms` / `## ...Works` sections of bullet or numbered lists.
  */
 export function parseExamMarkdown(text: string): ParsedExam {
-  const result: ParsedExam = { title: '', terms: [], works: [] };
-  let section: 'terms' | 'works' | null = null;
+  const result: ParsedExam = { title: '', terms: [], works: [], readings: [] };
+  let section: 'terms' | 'works' | 'readings' | null = null;
 
   for (const raw of text.split('\n')) {
     const heading = /^(#{1,6})\s+(.*)/.exec(raw);
@@ -82,12 +115,18 @@ export function parseExamMarkdown(text: string): ParsedExam {
       const lower = label.toLowerCase();
       if (hashes === '#' && !result.title) result.title = stripMd(label);
       if (lower.includes('term')) section = 'terms';
+      else if (lower.includes('reading')) section = 'readings';
       else if (lower.includes('work')) section = 'works';
       else if (hashes !== '#') section = null;
       continue;
     }
     const bullet = /^\s*(?:[-*+]|\d+[.)])\s+(.*)/.exec(raw);
     if (!bullet || !section) continue;
+    if (section === 'readings') {
+      const reading = parseReading(bullet[1] ?? '');
+      if (reading.title || reading.link) result.readings.push(reading);
+      continue;
+    }
     const { text, image } = splitOffImage(bullet[1] ?? '');
     const line = stripMd(text);
     if (!line) continue;

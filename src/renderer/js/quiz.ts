@@ -14,19 +14,24 @@ export interface SourceOption {
   label: string;
 }
 
+/** The exam's own lists that have something in them. */
+const filledLists = (exam: Exam): Kind[] =>
+  (['readings', 'works', 'terms'] as const).filter((kind) => exam[kind].length > 0);
+
+const LIST_LABELS: Record<'readings' | 'works' | 'terms', string> = { readings: 'Readings', works: 'Artworks', terms: 'Terms' };
+
 /** Study sources an exam supports, for the source dropdown. */
 export function studySources(exam: Exam): SourceOption[] {
-  const sources: SourceOption[] = [];
-  if (exam.works.length && exam.terms.length) sources.push({ value: 'mix', label: 'Works + Terms (mixed)' });
-  if (exam.works.length) sources.push({ value: 'works', label: 'Must Know Works' });
-  if (exam.terms.length) sources.push({ value: 'terms', label: 'Must Know Terms' });
+  const lists = filledLists(exam) as ('readings' | 'works' | 'terms')[];
+  const sources: SourceOption[] = lists.map((kind) => ({ value: kind, label: LIST_LABELS[kind] }));
+  if (lists.length > 1) sources.unshift({ value: 'mix', label: 'All mixed' });
   if (exam.filter) sources.push({ value: 'pool', label: 'Random Art' });
   return sources;
 }
 
-/** 'mix' becomes works or terms per card; other sources pass through. */
-export const resolveKind = (source: Source): Kind =>
-  source === 'mix' ? (Math.random() < 0.5 ? 'works' : 'terms') : source;
+/** 'mix' becomes one of the exam's lists per card; other sources pass through. */
+export const resolveKind = (source: Source, exam: Exam): Kind =>
+  source === 'mix' ? pick(filledLists(exam)) : source;
 
 /** The right answer plus up to 3 distinct wrong ones, shuffled. */
 function withDistractors(answer: string, candidates: readonly string[]): string[] {
@@ -79,6 +84,17 @@ export async function drawCard(exam: Exam, kind: Kind, mode: Mode): Promise<Card
     return {
       kind, term: term.term, definition: quiz ? maskTerm(term.definition, term.term) : term.definition, source: term.source, answer: term.term,
       choices: quiz ? withDistractors(term.term, exam.terms.map((other) => other.term)) : null,
+    };
+  }
+
+  if (kind === 'readings') {
+    const pool = quiz ? exam.readings.filter((candidate) => candidate.excerpt) : exam.readings;
+    if (!pool.length) return { error: 'No readings with text for quiz mode.' };
+    const reading = pick(pool);
+    return {
+      kind, title: reading.title, author: reading.author, source: reading.source, answer: reading.title,
+      excerpt: quiz ? maskTerm(reading.excerpt, reading.title) : reading.excerpt,
+      choices: quiz ? withDistractors(reading.title, exam.readings.map((other) => other.title)) : null,
     };
   }
 

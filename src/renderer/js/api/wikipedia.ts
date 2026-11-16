@@ -1,5 +1,6 @@
 // Wikipedia lookups: term definitions, and artworks (wherever they are kept) for the work search.
-import type { Work } from '../types.js';
+import type { ReadingCandidate, Work } from '../types.js';
+import { shorten } from '../textExtract.js';
 import { getJson } from './http.js';
 
 const API = 'https://en.wikipedia.org/w/api.php';
@@ -76,4 +77,33 @@ export async function searchWorks(query: string, limit: number): Promise<Work[]>
     .filter((page) => page.thumbnail && !DESCRIBES_PERSON.test(page.description ?? ''))
     .slice(0, limit)
     .map(toWork);
+}
+
+// ---- reading search ----
+
+const EXCERPT_CHARACTERS = 1500;
+
+interface WikipediaArticle {
+  pageid: number;
+  title: string;
+  index: number;
+  extract?: string;
+  fullurl?: string;
+}
+
+/** Articles matching `query`, each with the opening of its text as the excerpt. */
+export async function searchReadings(query: string, limit: number): Promise<ReadingCandidate[]> {
+  const result = await getJson<{ query?: { pages?: Record<string, WikipediaArticle> } }>(API, {
+    action: 'query', generator: 'search', gsrsearch: query, gsrlimit: String(limit),
+    prop: 'extracts|info', exintro: '1', explaintext: '1', exchars: String(EXCERPT_CHARACTERS), exlimit: 'max', inprop: 'url',
+    format: 'json', origin: '*',
+  });
+  return Object.values(result.query?.pages ?? {})
+    .sort((firstArticle, secondArticle) => firstArticle.index - secondArticle.index)
+    .map((article) => ({
+      reading: {
+        id: `wikipedia-${article.pageid}`, title: article.title, author: '',
+        excerpt: shorten(article.extract ?? '', EXCERPT_CHARACTERS), source: article.fullurl ?? '',
+      },
+    }));
 }

@@ -18,15 +18,28 @@ const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;'
 export const escapeHtml = (value: string | number | null | undefined): string =>
   String(value ?? '').replace(/[&<>"']/g, (character) => ESCAPES[character] ?? character);
 
-export const sourceLink = (url: string | undefined): string =>
+export const sourceLink = (url: string | undefined, label = 'Source'): string =>
   url?.startsWith('https://')
-    ? `<div class="small"><a class="source" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Source ↗</a></div>`
+    ? `<div class="small"><a class="source" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)} ↗</a></div>`
     : '';
 
 export const thumb = (imageUrl: string | undefined): string => (imageUrl ? `<img src="${escapeHtml(imageUrl)}">` : '<div class="thumb"></div>');
 
+/** One checkbox per place to search, all ticked to start with. Built once, so choices last while the app is open. */
+export function renderSourceChoices(containerId: string, sources: readonly { id: string; label: string }[]): void {
+  const container = byId(containerId);
+  if (container.childElementCount) return;
+  container.innerHTML = sources.map((source) =>
+    `<label><input type="checkbox" value="${escapeHtml(source.id)}" checked> ${escapeHtml(source.label)}</label>`).join('');
+}
+
+/** The ids of the ticked places in a container made by `renderSourceChoices`. */
+export const chosenSourceIds = (containerId: string): string[] =>
+  [...byId(containerId).querySelectorAll<HTMLInputElement>('input:checked')].map((checkbox) => checkbox.value);
+
 interface ResultRow {
-  image: string | undefined;
+  /** null = no picture area at all (readings), undefined or '' = an empty one. */
+  image: string | undefined | null;
   title: string;
   subtitle?: string;
   /** Trusted HTML for the action button. */
@@ -37,7 +50,7 @@ interface ResultRow {
 
 /** One thumbnail + text + action row, shared by search results and the added-works list. */
 export const resultRow = ({ image, title, subtitle = '', button, extra = '' }: ResultRow): string => `
-  <div class="result">${thumb(image)}
+  <div class="result">${image === null ? '' : thumb(image)}
     <div class="text">${escapeHtml(title)}${subtitle ? `<br><span class="small">${escapeHtml(subtitle)}</span>` : ''}${extra}</div>
     ${button}
   </div>`;

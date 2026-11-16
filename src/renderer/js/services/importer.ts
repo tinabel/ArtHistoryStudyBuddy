@@ -2,14 +2,18 @@
 // parses it, fills missing definitions (Wikipedia) and finds images and nationalities for works.
 import { define } from '../api/wikipedia.js';
 import { parseExamMarkdown } from '../markdown.js';
-import type { Term, Work } from '../types.js';
+import type { Reading, Term, Work } from '../types.js';
 import { findWorkImage } from './imageFinder.js';
+import { findReading } from './readings.js';
 import { lookupWorkInfo } from './workInfo.js';
 
 export interface ImportedExam {
   title: string;
   terms: Term[];
   works: Work[];
+  readings: Reading[];
+  /** Titles of readings nothing could be found or downloaded for. */
+  noText: string[];
   /** Titles of works no image was found for. */
   noImage: string[];
   /** Titles of works whose picture, given in the file, could not be used (so it was searched for instead). */
@@ -63,5 +67,14 @@ export async function importExam(
     });
   }
 
-  return { title: parsed.title, terms, works, noImage, badImage };
+  const readings: Reading[] = [];
+  const noText: string[] = [];
+  for (const [index, request] of parsed.readings.entries()) {
+    onProgress(`Looking up reading ${index + 1}/${parsed.readings.length}...`);
+    const { reading, complete } = await findReading(request);
+    if (!complete) noText.push(reading.title || reading.source);
+    readings.push(reading);
+  }
+
+  return { title: parsed.title, terms, works, readings, noText, noImage, badImage };
 }
