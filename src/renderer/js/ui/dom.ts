@@ -31,11 +31,13 @@ interface ResultRow {
   subtitle?: string;
   /** Trusted HTML for the action button. */
   button: string;
+  /** Trusted HTML shown under the text (a field, for instance). */
+  extra?: string;
 }
 
 /** One thumbnail + text + action row, shared by search results and the added-works list. */
-export const resultRow = ({ image, title, subtitle = '', button }: ResultRow): string => `
+export const resultRow = ({ image, title, subtitle = '', button, extra = '' }: ResultRow): string => `
   <div class="result">${thumb(image)}
-    <div class="text">${escapeHtml(title)}${subtitle ? `<br><span class="small">${escapeHtml(subtitle)}</span>` : ''}</div>
+    <div class="text">${escapeHtml(title)}${subtitle ? `<br><span class="small">${escapeHtml(subtitle)}</span>` : ''}${extra}</div>
     ${button}
   </div>`;

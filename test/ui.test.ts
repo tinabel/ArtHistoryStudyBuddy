@@ -83,7 +83,7 @@ async function study(sourceValue: string, mode: 'flash' | 'quiz'): Promise<void>
 beforeAll(async () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'index.html'), 'utf8');
   document.body.innerHTML = (/<body>([\s\S]*)<\/body>/.exec(html)?.[1] ?? '').replace(/<script[\s\S]*?<\/script>/g, '');
-  window.api = { readMd: jest.fn(), pickMd: jest.fn(), ...database };
+  window.api = { readMd: jest.fn(), readImage: jest.fn(), pickMd: jest.fn(),...database };
   stubFetch([['/departments', { departments: [{ departmentId: 11, displayName: 'European Paintings' }] }]]);
   await import('../src/renderer/js/app.js');
   store = await import('../src/renderer/js/store.js');
@@ -307,6 +307,48 @@ describe('editor', () => {
     const saved = store.getExams()[0];
     expect(saved?.works[0]).toMatchObject({ artist: 'Gustave Courbet', nationality: 'French', image: 'courbet.jpg', source: 'https://commons/c' });
     expect(saved?.terms[0]?.source).toBe('https://en.wikipedia.org/wiki/Realism');
+  });
+
+  it('imports pictures named in the file: links as written, local files read through the app and shrunk', async () => {
+    (window.api.readMd as jest.Mock).mockResolvedValue(
+      '## Must Know Works\n- Claude Monet, Water Lilies, 1906 ![](https://example.org/lilies.jpg)\n- Edgar Degas, The Dance Class, 1874 ![](dance.png)');
+    (window.api.readImage as jest.Mock).mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), mimeType: 'image/png' });
+    (fileToDataUrl as jest.Mock).mockResolvedValue('data:image/jpeg;base64,AAAA');
+    stubFetch([['wbsearchentities', { search: [] }], ['/departments', { departments: [] }]]);
+    click(act('home.new'));
+    setValue('#mdPath', '~/exam.md');
+    click(act('editor.importPath'));
+    await waitFor(() => text('#editorMsg').startsWith('Imported'), 'import');
+    expect(window.api.readImage).toHaveBeenCalledWith('~/exam.md', 'dance.png');
+    setValue('#exName', 'Pictures');
+    click(act('editor.save'));
+    expect(store.getExams()[0]?.works.map((work) => work.image)).toEqual(['https://example.org/lilies.jpg', 'data:image/jpeg;base64,AAAA']);
+  });
+
+  it('lets an added work be given an image link, and rejects links that are not https', async () => {
+    stubFetch([
+      ['/objects/5', { objectID: 5, title: 'Haystacks', artistDisplayName: 'Claude Monet', artistNationality: 'French', objectDate: '1891', primaryImageSmall: 'h.jpg', objectURL: 'https://met/5' }],
+      ['/search', { objectIDs: [5] }],
+      ['/departments', { departments: [] }],
+    ]);
+    click(act('home.new'));
+    setValue('#searchQ', 'monet');
+    click(act('editor.search'));
+    await waitFor(() => text('#searchResults').includes('Haystacks'), 'search results');
+    click(act('editor.addResult'));
+
+    const linkBox = (): HTMLInputElement => find('#addedList .image-link') as HTMLInputElement;
+    linkBox().value = 'http://example.org/insecure.jpg';
+    linkBox().dispatchEvent(new Event('change', { bubbles: true }));
+    expect(text('#editorMsg')).toContain('https://');
+    expect(linkBox().value).toBe(''); // the list is redrawn from the saved work, which kept its old image
+
+    linkBox().value = 'https://example.org/better.jpg';
+    linkBox().dispatchEvent(new Event('change', { bubbles: true }));
+    expect(linkBox().value).toBe('https://example.org/better.jpg');
+    setValue('#exName', 'Linked');
+    click(act('editor.save'));
+    expect(store.getExams()[0]?.works[0]?.image).toBe('https://example.org/better.jpg');
   });
 
   it('reports an unreadable file', async () => {

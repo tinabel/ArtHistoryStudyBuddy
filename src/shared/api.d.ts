@@ -4,6 +4,11 @@ import type { StudyData } from './data.js';
 export interface StudyApi {
   /** Read a markdown file (accepts ~, quotes and shell-escaped spaces). */
   readMd: (path: string) => Promise<string>;
+  /**
+   * Reads a picture named in a markdown file. `imagePath` is relative to the markdown file (or absolute / ~), and
+   * the picture must be in that file's folder or below it. Rejects for anything else (wrong type, too large...).
+   */
+  readImage: (markdownPath: string, imagePath: string) => Promise<{ bytes: Uint8Array<ArrayBuffer>; mimeType: string }>;
   /** Show a file picker; resolves to the chosen path or null if cancelled. */
   pickMd: () => Promise<string | null>;
   /**

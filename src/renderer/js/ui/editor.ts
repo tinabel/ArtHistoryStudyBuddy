@@ -1,12 +1,14 @@
 // Editor view: build a new exam by hand or from a markdown file.
 import * as met from '../api/met.js';
 import { formatTermLines, parseTermLines } from '../markdown.js';
+import { validateImageUrl } from '../imageUrl.js';
 import { importExam } from '../services/importer.js';
 import { searchWorks, WORK_SOURCES, type FoundWork } from '../services/workSearch.js';
 import { addExam, getCourses, makeExam } from '../store.js';
 import type { Filter, Work } from '../types.js';
 import { indexOf, type ActionMap } from './actions.js';
 import { byId, escapeHtml, field, resultRow } from './dom.js';
+import { fileToDataUrl } from './image.js';
 import { go } from './router.js';
 
 // Draft state for the exam being built
@@ -33,6 +35,9 @@ function renderWorks(): void {
   byId('addedList').innerHTML = works.map((work, index) => resultRow({
     image: work.image,
     title: work.title,
+    extra: `<input type="text" class="image-link" data-i="${index}" data-change="editor.setWorkImage" aria-label="Image link for ${escapeHtml(work.title)}"
+      placeholder="${work.image.startsWith('data:') ? 'Using a chosen picture; paste a link to replace it' : 'Paste an image link (https://…)'}"
+      value="${work.image.startsWith('https://') ? escapeHtml(work.image) : ''}">`,
     button: `<button type="button" class="danger" data-action="editor.removeWork" data-i="${index}">✕</button>`,
   })).join('');
 }
@@ -109,6 +114,18 @@ async function runImport(path: string): Promise<void> {
   }
 }
 
+/** A picture named in the markdown file: an https:// link is kept as it is; a file beside the markdown is read and shrunk. */
+async function pictureFor(markdownPath: string, target: string): Promise<string> {
+  if (/^https:/i.test(target)) {
+    const problem = validateImageUrl(target);
+    if (problem) throw new Error(problem);
+    return target;
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(target)) throw new Error('Only https:// links and files can be used.');
+  const { bytes, mimeType } = await window.api.readImage(markdownPath, target);
+  return fileToDataUrl(new File([bytes], target, { type: mimeType }));
+}
+
 async function importFile(path: string): Promise<void> {
   let text: string;
   try {
@@ -118,7 +135,7 @@ async function importFile(path: string): Promise<void> {
     return;
   }
 
-  const imported = await importExam(text, say);
+  const imported = await importExam(text, say, (target) => pictureFor(path, target));
   if (!input('exName').value) input('exName').value = imported.title;
 
   for (const term of imported.terms) if (term.source) termSources.set(term.term, term.source);
@@ -130,6 +147,7 @@ async function importFile(path: string): Promise<void> {
   imported.works.forEach(addWork);
 
   say(`Imported ${imported.terms.length} terms (definitions auto-filled from Wikipedia — review!), ${imported.works.length} works.` +
+    (imported.badImage.length ? ` Could not use the picture given for: ${imported.badImage.join('; ')} (searched instead).` : '') +
     (imported.noImage.length ? ` No image: ${imported.noImage.join('; ')}` : ''));
 }
 
@@ -168,6 +186,16 @@ export const actions: ActionMap = {
   'editor.save': save,
   'editor.toggleFilter': (element) => { byId('filterFields').hidden = !(element as HTMLInputElement).checked; },
   'editor.removeWork': (element) => { works.splice(indexOf(element), 1); renderWorks(); },
+  'editor.setWorkImage': (element) => {
+    const work = works[indexOf(element)];
+    const link = (element as HTMLInputElement).value.trim();
+    const problem = validateImageUrl(link);
+    if (!work) return;
+    if (problem) { say(problem); renderWorks(); return; }
+    say('');
+    work.image = link; // an empty link means "no image"
+    renderWorks();
+  },
   'editor.addResult': (element) => {
     const result = searchResults[indexOf(element)];
     if (result) addWork(result.work);

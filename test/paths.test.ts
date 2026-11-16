@@ -1,6 +1,19 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { normalizePath } from '../src/main/paths.js';
+import { isInsideFolder, normalizePath } from '../src/main/paths.js';
+
+describe('isInsideFolder', () => {
+  it('accepts files in the folder or below it', () => {
+    expect(isInsideFolder('/notes/a.png', '/notes')).toBe(true);
+    expect(isInsideFolder('/notes/pictures/a.png', '/notes')).toBe(true);
+  });
+
+  it('refuses files outside it, including a sibling with a similar name', () => {
+    expect(isInsideFolder('/other/a.png', '/notes')).toBe(false);
+    expect(isInsideFolder('/notes-old/a.png', '/notes')).toBe(false);
+    expect(isInsideFolder('/notes', '/notes')).toBe(false);
+  });
+});
 
 describe('normalizePath', () => {
   it('trims whitespace and strips surrounding quotes', () => {

@@ -92,6 +92,22 @@ describe('parseExamMarkdown', () => {
     expect(parsed.works).toEqual([]);
   });
 
+  it('reads a picture on a work line (link, relative path, or <path with spaces>) and keeps the rest of the line', () => {
+    const parsed = parseExamMarkdown([
+      '## Must Know Works',
+      '- Leonardo, Mona Lisa, 1503 ![Mona Lisa](https://example.org/mona.jpg) (p. 1)',
+      '- Raphael, School of Athens, 1511 ![](images/school.png)',
+      '- Giotto, Lamentation, 1305 ![](<my pictures/lament.jpg>)',
+      '- Titian, Venus of Urbino, 1538',
+    ].join('\n'));
+    expect(parsed.works).toEqual([
+      { artist: 'Leonardo', title: 'Mona Lisa', date: '1503', image: 'https://example.org/mona.jpg' },
+      { artist: 'Raphael', title: 'School of Athens', date: '1511', image: 'images/school.png' },
+      { artist: 'Giotto', title: 'Lamentation', date: '1305', image: 'my pictures/lament.jpg' },
+      { artist: 'Titian', title: 'Venus of Urbino', date: '1538' },
+    ]);
+  });
+
   it('returns empty content for empty input', () => {
     expect(parseExamMarkdown('')).toEqual({ title: '', terms: [], works: [] });
   });

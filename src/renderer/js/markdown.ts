@@ -8,6 +8,8 @@ export interface ParsedWork {
   date: string;
   /** Only when the line says "(movement: ...)". */
   movement?: string;
+  /** Only when the line holds a picture, `![](picture.jpg)`: an https:// address or a file path, as written. */
+  image?: string;
 }
 
 export interface ParsedExam {
@@ -21,6 +23,14 @@ export const stripMd = (text: string): string =>
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/\*/g, '')
     .trim();
+
+const IMAGE_MARKDOWN = /!\[[^\]]*\]\(\s*<?([^)>]*?)>?\s*\)/;
+
+/** Splits a picture, `![caption](address)`, off a line. A path with spaces may be written `![](<my picture.jpg>)`. */
+export function splitOffImage(line: string): { text: string; image: string } {
+  const match = IMAGE_MARKDOWN.exec(line);
+  return match ? { text: line.replace(IMAGE_MARKDOWN, ' ').trim(), image: (match[1] ?? '').trim() } : { text: line, image: '' };
+}
 
 /**
  * "Artist, Title, 1814 (p. 994)" -> { artist, title, date }.
@@ -78,10 +88,11 @@ export function parseExamMarkdown(text: string): ParsedExam {
     }
     const bullet = /^\s*(?:[-*+]|\d+[.)])\s+(.*)/.exec(raw);
     if (!bullet || !section) continue;
-    const line = stripMd(bullet[1] ?? '');
+    const { text, image } = splitOffImage(bullet[1] ?? '');
+    const line = stripMd(text);
     if (!line) continue;
     if (section === 'terms') result.terms.push(parseTermLine(line));
-    else result.works.push(parseWork(line));
+    else result.works.push(image ? { ...parseWork(line), image } : parseWork(line));
   }
   return result;
 }
