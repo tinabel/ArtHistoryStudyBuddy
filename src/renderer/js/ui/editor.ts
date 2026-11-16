@@ -2,6 +2,7 @@
 import * as met from '../api/met.js';
 import { formatTermLines, parseTermLines } from '../markdown.js';
 import { importExam } from '../services/importer.js';
+import { searchWorks, WORK_SOURCES, type FoundWork } from '../services/workSearch.js';
 import { addExam, getCourses, makeExam } from '../store.js';
 import type { Filter, Work } from '../types.js';
 import { indexOf, type ActionMap } from './actions.js';
@@ -13,7 +14,7 @@ let works: Work[] = [];
 // term -> source URL (for auto-filled definitions). A Map, not a plain object: a term can be called anything,
 // and looking up "constructor" in a plain object finds a built-in function instead of nothing.
 const termSources = new Map<string, string>();
-let searchResults: Work[] = [];
+let searchResults: FoundWork[] = [];
 let departmentsLoaded = false;
 
 const input = (id: string): HTMLInputElement => field(id, HTMLInputElement);
@@ -36,16 +37,26 @@ function renderWorks(): void {
   })).join('');
 }
 
+/** Shows the search results, with an optional line above them (progress, "nothing found", a place that failed). */
 function renderSearchResults(message: string): void {
-  byId('searchResults').innerHTML = message
-    ? `<div class="small">${escapeHtml(message)}</div>`
-    : searchResults.map((work, index) => resultRow({
-      image: work.image,
-      title: work.title,
-      subtitle: `${work.artist || 'Unknown'}${work.nationality ? ` (${work.nationality})` : ''} · ${work.date}`,
-      button: `<button type="button" data-action="editor.addResult" data-i="${index}">Add</button>`,
-    })).join('');
+  const note = message ? `<div class="small">${escapeHtml(message)}</div>` : '';
+  byId('searchResults').innerHTML = note + searchResults.map(({ work, sourceLabel }, index) => resultRow({
+    image: work.image,
+    title: work.title,
+    subtitle: [`${work.artist || 'Unknown'}${work.nationality ? ` (${work.nationality})` : ''}`, work.date, sourceLabel].filter(Boolean).join(' · '),
+    button: `<button type="button" data-action="editor.addResult" data-i="${index}">Add</button>`,
+  })).join('');
 }
+
+/** One checkbox per place to search, all ticked to start with. Built once, so choices last while the app is open. */
+function renderSearchSources(): void {
+  if (byId('searchSources').childElementCount) return;
+  byId('searchSources').innerHTML = WORK_SOURCES.map((source) =>
+    `<label><input type="checkbox" value="${escapeHtml(source.id)}" checked> ${escapeHtml(source.label)}</label>`).join('');
+}
+
+const chosenSourceIds = (): string[] =>
+  [...document.querySelectorAll<HTMLInputElement>('#searchSources input:checked')].map((checkbox) => checkbox.value);
 
 async function loadDepartments(): Promise<void> {
   if (departmentsLoaded) return;
@@ -70,6 +81,7 @@ export function open(course = ''): void {
   termsBox().value = '';
   input('useFilter').checked = false;
   byId('filterFields').hidden = true;
+  renderSearchSources();
   renderSearchResults('');
   renderWorks();
   say('');
@@ -157,8 +169,8 @@ export const actions: ActionMap = {
   'editor.toggleFilter': (element) => { byId('filterFields').hidden = !(element as HTMLInputElement).checked; },
   'editor.removeWork': (element) => { works.splice(indexOf(element), 1); renderWorks(); },
   'editor.addResult': (element) => {
-    const work = searchResults[indexOf(element)];
-    if (work) addWork(work);
+    const result = searchResults[indexOf(element)];
+    if (result) addWork(result.work);
   },
   'editor.importPath': () => {
     const path = input('mdPath').value.trim();
@@ -172,14 +184,18 @@ export const actions: ActionMap = {
     }
   },
   'editor.search': async () => {
-    const q = input('searchQ').value.trim();
-    if (!q) return;
+    const query = input('searchQ').value.trim();
+    if (!query) return;
+    const sourceIds = chosenSourceIds();
+    searchResults = [];
+    if (!sourceIds.length) { renderSearchResults('Tick at least one place to search.'); return; }
     renderSearchResults('Searching...');
-    try {
-      searchResults = await met.searchWorks(q);
-      renderSearchResults(searchResults.length ? '' : 'No results with images.');
-    } catch {
-      renderSearchResults('Search failed.');
-    }
+    const { found, failed } = await searchWorks(query, sourceIds);
+    searchResults = found;
+    const notes = [
+      found.length ? '' : 'No results with images.',
+      failed.length ? `Could not reach: ${failed.join(', ')}.` : '',
+    ];
+    renderSearchResults(notes.filter(Boolean).join(' '));
   },
 };

@@ -66,7 +66,7 @@ export const toWork = (metObject: MetObject): Work => ({
 });
 
 /** Free-text search; returns up to `limit` works that have an image. */
-export async function searchWorks(query: string, limit = 10): Promise<Work[]> {
+export async function searchWorks(query: string, limit: number): Promise<Work[]> {
   const ids = (await searchIds({ q: query })).slice(0, limit);
   const objects = await Promise.all(ids.map(getObject));
   return objects.filter((metObject): metObject is MetObject => metObject?.primaryImageSmall !== undefined && metObject.primaryImageSmall !== '').map(toWork);

@@ -87,6 +87,9 @@ h1 { font-size: 1.5rem; margin: 0 0 1rem; }
 .small { font-size: .8rem; opacity: .7; } /* hints, counts, status messages */
 .prompt { margin: 1rem 0; }
 
+/* A line of labelled checkboxes; wraps when narrow */
+.check-row { display: flex; flex-wrap: wrap; gap: .2rem 1rem; margin: .3rem 0; }
+
 /* Input + buttons on one line; wraps when narrow */
 .field-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .3rem 0; }
 .field-row > * { margin: 0; }

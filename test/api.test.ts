@@ -42,7 +42,7 @@ describe('Met API', () => {
       ['/objects/3', new Error('gone')],
       ['/search', { objectIDs: [1, 2, 3] }],
     ]);
-    expect((await met.searchWorks('portrait')).map((work) => work.id)).toEqual([1]);
+    expect((await met.searchWorks('portrait', 10)).map((work) => work.id)).toEqual([1]);
     expect(calls[0]).toContain('hasImages=true');
     expect(calls[0]).toContain('q=portrait');
   });
@@ -68,7 +68,7 @@ describe('Met API', () => {
 
   it('a retired search endpoint is an error, not "no results"', async () => {
     stubFetch([['/search', new Error('gone')]]);
-    await expect(met.searchWorks('monet')).rejects.toThrow(/HTTP 500/);
+    await expect(met.searchWorks('monet', 10)).rejects.toThrow(/HTTP 500/);
   });
 
   it('still uses v1 for departments and individual objects', async () => {
