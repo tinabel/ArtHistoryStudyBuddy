@@ -23,10 +23,10 @@ export const sourceLink = (url: string | undefined): string =>
     ? `<div class="small"><a class="source" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Source ↗</a></div>`
     : '';
 
-export const thumb = (src: string | undefined): string => (src ? `<img src="${escapeHtml(src)}">` : '<div class="thumb"></div>');
+export const thumb = (imageUrl: string | undefined): string => (imageUrl ? `<img src="${escapeHtml(imageUrl)}">` : '<div class="thumb"></div>');
 
 interface ResultRow {
-  img: string | undefined;
+  image: string | undefined;
   title: string;
   subtitle?: string;
   /** Trusted HTML for the action button. */
@@ -34,8 +34,8 @@ interface ResultRow {
 }
 
 /** One thumbnail + text + action row, shared by search results and the added-works list. */
-export const resultRow = ({ img, title, subtitle = '', button }: ResultRow): string => `
-  <div class="result">${thumb(img)}
+export const resultRow = ({ image, title, subtitle = '', button }: ResultRow): string => `
+  <div class="result">${thumb(image)}
     <div class="text">${escapeHtml(title)}${subtitle ? `<br><span class="small">${escapeHtml(subtitle)}</span>` : ''}</div>
     ${button}
   </div>`;

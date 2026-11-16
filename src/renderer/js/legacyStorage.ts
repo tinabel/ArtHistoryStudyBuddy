@@ -1,8 +1,26 @@
 // Reads exams saved by versions of the app from before the SQLite database, which kept them in the browser's
-// localStorage. Read-only: it is used once, to carry old exams over (see `load` in store.ts).
+// localStorage, and converts them to today's shapes (fields had shorter names then: img, src, def, c, t).
+// Read-only: it is used once, to carry old exams over (see `load` in store.ts).
 import type { Exam, Filter, Kind, Term, Work } from './types.js';
 
 const KEY = 'exams';
+
+interface LegacyWork {
+  id?: string | number;
+  title?: string;
+  artist?: string;
+  nationality?: string;
+  movement?: string;
+  date?: string;
+  img?: string;
+  src?: string;
+}
+
+interface LegacyTerm {
+  term?: string;
+  def?: string;
+  src?: string;
+}
 
 /** Anything that may be in localStorage: the last format or an older one. */
 interface SavedExam {
@@ -10,7 +28,7 @@ interface SavedExam {
   course?: string;
   type?: 'list' | 'filter';
   // oldest "list" exams
-  items?: Work[];
+  items?: LegacyWork[];
   // oldest "filter" exams
   deptId?: string;
   deptName?: string;
@@ -18,18 +36,26 @@ interface SavedExam {
   to?: string;
   q?: string;
   // last format
-  works?: Work[];
-  terms?: Term[];
+  works?: LegacyWork[];
+  terms?: LegacyTerm[];
   filter?: Filter | null;
   /** Scores used to be saved with one-letter names: c = correct, t = total. */
   stats?: Partial<Record<Kind, { c: number; t: number }>>;
 }
 
-/** Old data can lack fields the database insists on. */
-const completeWork = (work: Partial<Work>): Work =>
-  ({ ...work, id: work.id ?? '', title: work.title ?? '', artist: work.artist ?? '', date: work.date ?? '', img: work.img ?? '' });
+/** Old data can lack fields the database insists on: those become ''. */
+const upgradeWork = (old: LegacyWork): Work => ({
+  id: old.id ?? '',
+  title: old.title ?? '',
+  artist: old.artist ?? '',
+  nationality: old.nationality,
+  movement: old.movement,
+  date: old.date ?? '',
+  image: old.img ?? '',
+  source: old.src,
+});
 
-const completeTerm = (term: Partial<Term>): Term => ({ ...term, term: term.term ?? '', def: term.def ?? '' });
+const upgradeTerm = (old: LegacyTerm): Term => ({ term: old.term ?? '', definition: old.def ?? '', source: old.src });
 
 /** Old data is not trusted to hold numbers: anything else counts as 0. */
 const toCount = (value: unknown): number => (typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 0);
@@ -42,7 +68,7 @@ function upgradeStats(saved: SavedExam['stats'] = {}): Exam['stats'] {
 
 function upgrade(saved: SavedExam): Exam {
   if (saved.type === 'list') {
-    return { name: saved.name, works: (saved.items ?? []).map(completeWork), terms: [], filter: null, stats: {} };
+    return { name: saved.name, works: (saved.items ?? []).map(upgradeWork), terms: [], filter: null, stats: {} };
   }
   if (saved.type === 'filter') {
     return {
@@ -52,8 +78,8 @@ function upgrade(saved: SavedExam): Exam {
   }
   const exam: Exam = {
     name: saved.name,
-    works: (saved.works ?? []).map(completeWork),
-    terms: (saved.terms ?? []).map(completeTerm),
+    works: (saved.works ?? []).map(upgradeWork),
+    terms: (saved.terms ?? []).map(upgradeTerm),
     filter: saved.filter ?? null,
     stats: upgradeStats(saved.stats),
   };

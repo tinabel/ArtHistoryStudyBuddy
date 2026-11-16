@@ -30,7 +30,7 @@ function addWork(work: Work): void {
 function renderWorks(): void {
   byId('addedCount').textContent = String(works.length);
   byId('addedList').innerHTML = works.map((work, index) => resultRow({
-    img: work.img,
+    image: work.image,
     title: work.title,
     button: `<button type="button" class="danger" data-action="editor.removeWork" data-i="${index}">✕</button>`,
   })).join('');
@@ -40,7 +40,7 @@ function renderSearchResults(message: string): void {
   byId('searchResults').innerHTML = message
     ? `<div class="small">${escapeHtml(message)}</div>`
     : searchResults.map((work, index) => resultRow({
-      img: work.img,
+      image: work.image,
       title: work.title,
       subtitle: `${work.artist || 'Unknown'}${work.nationality ? ` (${work.nationality})` : ''} · ${work.date}`,
       button: `<button type="button" data-action="editor.addResult" data-i="${index}">Add</button>`,
@@ -109,7 +109,7 @@ async function importFile(path: string): Promise<void> {
   const imported = await importExam(text, say);
   if (!input('exName').value) input('exName').value = imported.title;
 
-  for (const term of imported.terms) if (term.src) termSources.set(term.term, term.src);
+  for (const term of imported.terms) if (term.source) termSources.set(term.term, term.source);
   const terms = termsBox();
   const existing = terms.value.trim();
   const lines = formatTermLines(imported.terms);
@@ -137,7 +137,7 @@ function save(): void {
   const name = input('exName').value.trim();
   if (!name) { say('Name required.'); return; }
 
-  const terms = parseTermLines(termsBox().value).map((term) => ({ ...term, src: termSources.get(term.term) ?? '' }));
+  const terms = parseTermLines(termsBox().value).map((term) => ({ ...term, source: termSources.get(term.term) ?? '' }));
   const result = readFilter();
   if ('error' in result) { say(result.error); return; }
   if (!works.length && !terms.length && !result.filter) { say('Add works, terms, or a random pool.'); return; }

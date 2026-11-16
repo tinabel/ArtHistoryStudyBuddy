@@ -30,7 +30,7 @@ function artist(nameInSearch: string, personId: string, countryId: string, movem
 describe('findWorkImage', () => {
   it('uses Commons first', async () => {
     stubFetch([commonsHit()]);
-    expect(await findWorkImage({ artist: 'J.A.D. Ingres', title: 'Large Odalisque' })).toEqual({ img: 'thumb.jpg', src: 'https://commons/desc' });
+    expect(await findWorkImage({ artist: 'J.A.D. Ingres', title: 'Large Odalisque' })).toEqual({ image: 'thumb.jpg', source: 'https://commons/desc' });
   });
 
   it('queries with the title (parentheticals removed) and the artist surname', async () => {
@@ -45,12 +45,12 @@ describe('findWorkImage', () => {
       ['/objects/1', { objectID: 1, title: 'Olympia', artistDisplayName: 'Edouard Manet', primaryImageSmall: 'met.jpg', objectURL: 'https://met/1' }],
       ['/search', { objectIDs: [1] }],
     ]);
-    expect(await findWorkImage({ artist: 'Edouard Manet', title: 'Olympia' })).toEqual({ img: 'met.jpg', src: 'https://met/1' });
+    expect(await findWorkImage({ artist: 'Edouard Manet', title: 'Olympia' })).toEqual({ image: 'met.jpg', source: 'https://met/1' });
   });
 
   it('returns empty strings when nothing is found', async () => {
     stubFetch([['commons.wikimedia.org', { batchcomplete: '' }], ['/search', { objectIDs: [] }]]);
-    expect(await findWorkImage({ artist: 'Nobody', title: 'Nothing' })).toEqual({ img: '', src: '' });
+    expect(await findWorkImage({ artist: 'Nobody', title: 'Nothing' })).toEqual({ image: '', source: '' });
   });
 });
 
@@ -83,7 +83,7 @@ describe('lookupArtistInfo', () => {
 });
 
 describe('enrichWorks', () => {
-  const work = (over: Partial<Work>): Work => ({ id: 1, title: 'T', artist: 'A', date: '1800', img: '', ...over });
+  const work = (over: Partial<Work>): Work => ({ id: 1, title: 'T', artist: 'A', date: '1800', image: '', ...over });
 
   it('fills in a missing nationality and movement, and reports each change', async () => {
     stubFetch(artist('Enrich\\+One', 'Q505', 'Q605', { id: 'Q905', label: 'realism' }));
@@ -135,12 +135,12 @@ describe('importExam', () => {
 
     expect(result.title).toBe('Course Exam');
     expect(result.terms).toEqual([
-      { term: 'Realism', def: 'Auto definition. More text.', src: 'https://en.wikipedia.org/wiki/Realism' },
-      { term: 'Sublime', def: 'given definition', src: '' },
+      { term: 'Realism', definition: 'Auto definition. More text.', source: 'https://en.wikipedia.org/wiki/Realism' },
+      { term: 'Sublime', definition: 'given definition', source: '' },
     ]);
     expect(result.works).toEqual([{
       id: 'md-Gustave Courbet|The Stone Breakers', title: 'The Stone Breakers', artist: 'Gustave Courbet',
-      nationality: 'Testish', movement: 'Realism', date: '1849', img: 'thumb.jpg', src: 'https://commons/desc',
+      nationality: 'Testish', movement: 'Realism', date: '1849', image: 'thumb.jpg', source: 'https://commons/desc',
     }]);
     expect(result.noImage).toEqual([]);
     expect(messages.some((message) => message.includes('Defining term 1/2'))).toBe(true);
@@ -161,7 +161,7 @@ describe('importExam', () => {
     stubFetch([['commons.wikimedia.org', { batchcomplete: '' }], ['/search', { objectIDs: [] }], ['wbsearchentities', { search: [] }]]);
     const result = await importExam('## Must Know Works\n- Unknown Painter, Lost Painting, 1700');
     expect(result.works).toHaveLength(1);
-    expect(result.works[0]).toMatchObject({ img: '', nationality: '', movement: '' });
+    expect(result.works[0]).toMatchObject({ image: '', nationality: '', movement: '' });
     expect(result.noImage).toEqual(['Lost Painting']);
   });
 
