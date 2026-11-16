@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { StudyData } from '../shared/data.js';
 import type { Database } from './database.js';
+import { fetchText } from './fetchText.js';
 import { isInsideFolder, normalizePath } from './paths.js';
 
 const IMPORT_EXTENSIONS = new Set(['.md', '.markdown', '.txt']);
@@ -81,6 +82,13 @@ export function registerIpc(database: Database, pageFile: string): void {
     if (!info.isFile()) throw new Error('Not a regular file');
     if (info.size > MAX_IMAGE_BYTES) throw new Error('That picture is too large (over 15 MB).');
     return { bytes: new Uint8Array(await fs.promises.readFile(file)), mimeType };
+  });
+
+  // Text of a web page, for readings. fetchText refuses anything but public https addresses (see fetchText.ts).
+  ipcMain.handle('fetch-text', async (event, address: unknown) => {
+    checkSender(event);
+    if (typeof address !== 'string') throw new Error('Invalid address');
+    return fetchText(address);
   });
 
   ipcMain.handle('pick-md', async (event) => {

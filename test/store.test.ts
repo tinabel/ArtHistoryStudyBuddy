@@ -34,7 +34,7 @@ describe('loading', () => {
   });
 
   it('loads what the database holds', async () => {
-    install({ saved: { courses: ['Art History 101'], exams: [{ name: 'Midterm', course: 'Art History 101', works: [], terms: [], filter: null, stats: {} }] } });
+    install({ saved: { courses: ['Art History 101'], exams: [{ name: 'Midterm', course: 'Art History 101', works: [], terms: [], readings: [], filter: null, stats: {} }] } });
     const store = await freshStore();
     expect(store.getExams().map((exam) => exam.name)).toEqual(['Midterm']);
     expect(store.getCourses()).toEqual(['Art History 101']);
@@ -67,7 +67,7 @@ describe('exams from before the database (localStorage)', () => {
       { name: 'F', type: 'filter', deptId: '11', deptName: 'Paintings', from: '1400', to: '1600', q: 'portrait' },
     ]) });
     const [list, filter] = (await freshStore()).getExams();
-    expect(list).toEqual({ name: 'L', works: [{ id: 1, title: 'T', artist: '', date: '', image: '' }], terms: [], filter: null, stats: {} });
+    expect(list).toEqual({ name: 'L', works: [{ id: 1, title: 'T', artist: '', date: '', image: '' }], terms: [], readings: [], filter: null, stats: {} });
     expect(filter?.filter).toEqual({ deptId: '11', deptName: 'Paintings', from: '1400', to: '1600', q: 'portrait' });
     expect(filter?.works).toEqual([]);
   });

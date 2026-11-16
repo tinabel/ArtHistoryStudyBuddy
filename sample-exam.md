@@ -1,10 +1,14 @@
 # Renaissance Midterm
 
-## Must Know Terms
+## Readings
+- Ways of Seeing by John Berger
+- Frankenstein, Mary Shelley
+
+## Terms
 - Chiaroscuro: strong contrast of light and dark
 - **Sfumato**: soft, hazy blending of tones
 - Contrapposto - weight shifted to one leg
 
-## Must Know Works
+## Artworks
 - Mona Lisa — Leonardo
 - Washington Crossing the Delaware — Leutze

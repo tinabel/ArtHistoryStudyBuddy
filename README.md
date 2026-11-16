@@ -1,6 +1,6 @@
 # Art History Study Buddy
 
-Art history study and review app for macOS (Electron + TypeScript). Build exams from "must know" works and terms, then drill them with flashcards or multiple-choice quizzes. Scores are saved per exam.
+Art history study and review app for macOS (Electron + TypeScript). Build exams from readings, artworks and terms, then drill them with flashcards or multiple-choice quizzes. Scores are saved per exam.
 
 ## Requirements
 
@@ -49,14 +49,16 @@ Earlier versions kept exams in the app's browser storage. The first time this ve
 
 1. **+ Add Exam**, then name it.
 2. Add content:
-   - **Must Know Works:** search and click Add, or import a markdown file. Tick the places to search: the Met, the Art Institute of Chicago, the Cleveland Museum of Art and Wikipedia (which covers works kept elsewhere, and architecture). Results from all ticked places are mixed together, whole works before details and sketches, and show where each came from. A place that can't be reached is named under the box.
-   - **Must Know Terms:** one per line as `term: definition`, or import a markdown file.
+   - **Readings:** search Project Gutenberg, the Internet Archive and Wikipedia and click Add, **paste a link** (`https://…`) into the same box to add that page, or list them in a markdown file. Each reading keeps the opening of its text as an excerpt, plus a link to read the rest.
+   - **Artworks:** search and click Add, or import a markdown file. Tick the places to search: the Met, the Art Institute of Chicago, the Cleveland Museum of Art and Wikipedia (which covers works kept elsewhere, and architecture). Results from all ticked places are mixed together, whole works before details and sketches, and show where each came from. A place that can't be reached is named under the box.
+   - **Terms:** one per line as `term: definition`, or import a markdown file.
    - **Random art pool (optional):** pull random Met art by department and year range.
-3. **Save Exam**, then **Study**. Choose Flashcard or Quiz, and Works, Terms, or mixed.
+3. **Save Exam**, then **Study**. Choose Flashcard or Quiz, and Readings, Artworks, Terms or all mixed. **Readings** on the exam list opens a plain list of the exam's readings to read through.
    - Flashcards: reveal the answer, then mark **Got it** or **Missed**.
    - Quizzes: pick from four choices.
      - **Works** are asked about at random: the **artist**, the **title**, the **year** and the **art movement** (Impressionism, Realism, …). A question is only asked when the app knows the answer, so a work with no movement never gets a movement question.
      - **Terms** show the definition with the term blanked out of it.
+     - **Readings** show an excerpt with the title blanked out, and you pick the title. (Flashcard: the title and author, then the excerpt.) Readings with no saved text are skipped in quizzes.
    - After you answer (or reveal), **Edit details** lets you correct that work's artist, nationality, title, date and movement, or a term's name and definition. Edits are saved to the exam. A corrected nationality also applies to that artist's other works.
      - A work with no picture (or the wrong one) can be given one there: paste an `https://` image link, **Choose a file…** from your Mac (it is scaled down to 640 px and saved inside the exam, about 35 KB each), or **Find automatically** to search Wikimedia Commons and the Met again with the title and artist as you've corrected them. **Remove** clears it.
      - Pictures you choose from your Mac are saved in the database with the exam. If saving ever fails, the edit is undone and you're told.
@@ -81,13 +83,23 @@ Type a file path (or use **Browse…**) in the exam editor. See [`sample-exam.md
 ```md
 # Exam Name
 
-## Must Know Works
+## Readings
+- Title by Author
+- Title, Author (pp. 3-20)
+- [Title](https://example.org/essay)
+- https://example.org/another-essay
+
+## Artworks
 - Artist, Title, Date (p. 123)
 
-## Must Know Terms
+## Terms
 - Term
 - Term: definition
 ```
+
+(Older files with `## Must Know Works` and `## Must Know Terms` still import.)
+
+- **Readings:** a line with a link downloads that page and keeps its opening paragraphs (and its title and author, unless the line gives them). A line with only a title (and author) is searched for in Project Gutenberg, the Internet Archive and Wikipedia, and the best match is used. If nothing is found, or a page can't be downloaded, the reading is kept with just what the file said, and the import message lists it.
 
 - Works get images from Wikimedia Commons, then the Met. Some may have no image.
 - **Or give the picture yourself** with markdown image syntax on the work's line: a link, or a file path relative to the markdown file (the picture must be in the same folder or below it; `.jpg`, `.png`, `.gif`, `.webp`). A path with spaces goes in angle brackets. Pictures from files are scaled down and saved inside the exam. If one can't be used, the app searches as usual and tells you.
@@ -129,6 +141,10 @@ Pull requests run typecheck, lint, tests and build in GitHub Actions (`.github/w
 
 Write a client in `src/renderer/js/api/` with `searchWorks(query, limit)`, add one line to `WORK_SOURCES` in `services/workSearch.ts`, and allow its address under `connect-src` in the Content-Security-Policy in `src/renderer/index.html`. Add a line to `scripts/check-apis.mjs` too.
 
+### Adding a place to search for readings
+
+Same steps with `searchReadings(query, limit)` in `api/` and `READING_SOURCES` in `services/readingSearch.ts`. A source that gives only an address for the text (like Project Gutenberg) sets `textUrl`, and the text is downloaded when the reading is added. A site that doesn't allow the page to ask it directly can be asked through `window.api.fetchText`, as `api/gutenberg.ts` does.
+
 ### Security
 
 The app is built on the assumption that the page (and anything it loads from the internet) could misbehave, so the page is given as little power as possible. When changing the app, keep these true:
@@ -136,9 +152,11 @@ The app is built on the assumption that the page (and anything it loads from the
 | Rule | Where |
 |---|---|
 | The page runs sandboxed, without Node, and can't navigate away, open windows or use the camera, microphone or location | `src/main/main.ts` |
-| The page may only load scripts and styles from the app itself, images over `https:`/`data:`, and data from the four services it uses | the Content-Security-Policy in `src/renderer/index.html` |
+| The page may only load scripts and styles from the app itself, images over `https:`/`data:`, and data from the few services it uses (listed there) | the Content-Security-Policy in `src/renderer/index.html` |
 | Requests from the page to the main process are accepted only from the app's own `index.html` | `checkSender` in `src/main/ipc.ts` |
 | Importing reads only `.md`, `.markdown` and `.txt` files up to 5 MB, checked on the real file behind any link | `read-md` in `src/main/ipc.ts` |
+| Downloading a page for a reading (`fetch-text`): public `https:` addresses only, on the standard port; a host name is looked up at the moment of connecting and refused if any address is loopback, private, link-local or otherwise not public (this also covers redirects, of which there are at most 3); text only, 1 MB at most, 15 seconds at most | `src/main/fetchText.ts` |
+| Pictures named in a markdown file are read only from that file's folder or below, and only `.jpg`, `.png`, `.gif`, `.webp` up to 15 MB | `read-image` in `src/main/ipc.ts` |
 | SQL is run only with `?` parameters, never built from text; every value is type-checked going in and coming out | `src/main/database.ts` |
 | Text from files, the internet or the user is escaped before it becomes HTML | `escapeHtml` in `src/renderer/js/ui/dom.ts`; use it for every `${...}` put into `innerHTML` |
 | Links open in the browser only if they are `https:` | `openInBrowser` in `main.ts`, `sourceLink` in `dom.ts` |
@@ -151,7 +169,8 @@ Known limits:
 
 - The database is not encrypted. It holds study material, no passwords or personal data, and only your macOS user can read the file.
 - The app is ad-hoc signed, not signed with an Apple Developer ID, so macOS can't vouch for a copy you downloaded. Build it yourself or get it from someone you trust.
-- An image link you paste is fetched from that site, which then sees your IP address, as with any web page.
+- An image link you paste is fetched from that site, which then sees your IP address, as with any web page. So is a reading link: the app downloads it from your computer.
+- Text taken from a downloaded page is shown as plain text (never as HTML), but it is still only as accurate as the page.
 
 ### Dependency notes
 
@@ -167,6 +186,7 @@ src/
     database.ts      the SQLite database: tables, load, save, and checks on every value
     main.ts          creates the window
     ipc.ts           what the sandboxed page can't do itself: read files, reach the database
+    fetchText.ts     downloads a page for a reading, refusing anything not on the public internet
     paths.ts         path normalisation (pure)
     preload.ts       exposes a typed window.api to the page
   shared/          contracts shared by main and renderer
@@ -185,7 +205,7 @@ src/
       textMask.ts      pure: hides a term inside its definition
       years.ts         pure: find the year in a date, make plausible wrong dates
       services/        multi-step workflows: import, image lookup, work search across sources, work info (nationality, movement), random art
-      api/             one client per data source: Met, Art Institute of Chicago, Cleveland, Wikimedia Commons, Wikipedia, Wikidata
+      api/             one client per data source: Met, Art Institute of Chicago, Cleveland, Archive, Gutenberg, Wikimedia Commons, Wikipedia, Wikidata
       data/            fallback quiz answers (famous artists, titles, movements)
       types.ts, util.ts
 test/              Jest tests (unit, plus jsdom UI tests)
@@ -208,6 +228,7 @@ The database uses Node's built-in `node:sqlite`, so there is no extra package to
 |---|---|
 | `courses` | Class names, in display order |
 | `exams` | One row per exam: name, class, random-art filter and scores (the last two as JSON) |
+| `readings` | Each exam's readings (title, author, excerpt, link), one row each |
 | `works` | Each exam's works, one row each |
 | `terms` | Each exam's terms, one row each |
 
@@ -237,7 +258,7 @@ Images may only load from `https:` and `data:` addresses, and fonts and styleshe
 
 ## Data sources
 
-[Met Museum Open Access API](https://metmuseum.github.io/), [Art Institute of Chicago API](https://api.artic.edu/docs), [Cleveland Museum of Art Open Access API](https://openaccess-api.clevelandart.org), [Wikimedia Commons](https://commons.wikimedia.org), [Wikipedia](https://en.wikipedia.org), [Wikidata](https://www.wikidata.org).
+[Project Gutenberg](https://www.gutenberg.org) (through [Gutendex](https://gutendex.com)), [Internet Archive](https://archive.org), [Met Museum Open Access API](https://metmuseum.github.io/), [Art Institute of Chicago API](https://api.artic.edu/docs), [Cleveland Museum of Art Open Access API](https://openaccess-api.clevelandart.org), [Wikimedia Commons](https://commons.wikimedia.org), [Wikipedia](https://en.wikipedia.org), [Wikidata](https://www.wikidata.org).
 
 ## License
 

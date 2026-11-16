@@ -3,14 +3,14 @@
 import { validateImageUrl } from '../imageUrl.js';
 import { findWorkImage } from '../services/imageFinder.js';
 import { saveExams } from '../store.js';
-import type { Card, Exam, WorkCard, WorkImage } from '../types.js';
+import type { EditableCard, Exam, WorkCard, WorkImage } from '../types.js';
 import type { ActionMap } from './actions.js';
 import { byId, escapeHtml, field } from './dom.js';
 import { fileToDataUrl } from './image.js';
 
 interface Target {
   exam: Exam;
-  card: Card;
+  card: EditableCard;
   /** Called after a successful save, so the study view can redraw the card. */
   onSaved: () => void;
 }
@@ -23,7 +23,7 @@ export function track(next: Target | null): void {
 }
 
 /** Cards from the exam's own lists can be edited; random Met art isn't saved in the exam. */
-const isEditable = (card: Card | null): card is Card => card !== null && card.kind !== 'pool';
+const isEditable = (card: EditableCard | null): card is EditableCard => card !== null && card.kind !== 'pool';
 
 /** The fact a work question is about, as it is now. */
 const factOf = (card: WorkCard): string =>
@@ -58,7 +58,7 @@ const imageFieldsHtml = (picture: WorkImage): string => `
     <div id="editImageMsg" class="small"></div>
   </div>`;
 
-function editFormHtml(card: Card): string {
+function editFormHtml(card: EditableCard): string {
   const fields = card.kind === 'terms'
     ? `${editField('editTerm', 'Term', card.term)}
        <label class="field">Definition<textarea id="editDefinition" rows="4">${escapeHtml(card.definition)}</textarea></label>`

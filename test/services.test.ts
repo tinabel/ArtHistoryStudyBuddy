@@ -167,7 +167,7 @@ describe('importExam', () => {
 
   it('returns empty content for an empty file', async () => {
     stubFetch([]);
-    expect(await importExam('')).toEqual({ title: '', terms: [], works: [], noImage: [], badImage: [] });
+    expect(await importExam('')).toEqual({ title: '', terms: [], works: [], readings: [], noText: [], noImage: [], badImage: [] });
   });
 
   describe('pictures given in the file', () => {

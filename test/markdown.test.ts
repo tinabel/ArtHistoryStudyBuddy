@@ -109,7 +109,7 @@ describe('parseExamMarkdown', () => {
   });
 
   it('returns empty content for empty input', () => {
-    expect(parseExamMarkdown('')).toEqual({ title: '', terms: [], works: [] });
+    expect(parseExamMarkdown('')).toEqual({ title: '', terms: [], works: [], readings: [] });
   });
 });
 

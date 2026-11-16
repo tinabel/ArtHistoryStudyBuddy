@@ -10,7 +10,7 @@
 // the user alone.
 import * as fs from 'node:fs';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
-import type { Exam, Filter, Kind, StudyData, Term, Work } from '../shared/data.js';
+import type { Exam, Filter, Kind, Reading, StudyData, Term, Work } from '../shared/data.js';
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS courses (
@@ -45,12 +45,22 @@ const SCHEMA = `
     source     TEXT,
     PRIMARY KEY (exam_id, position)
   );
+  CREATE TABLE IF NOT EXISTS readings (
+    exam_id    INTEGER NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL,
+    reading_id TEXT NOT NULL,
+    title      TEXT NOT NULL,
+    author     TEXT NOT NULL,
+    excerpt    TEXT NOT NULL,
+    source     TEXT NOT NULL,     -- an https: address, or '' for none
+    PRIMARY KEY (exam_id, position)
+  );
 `;
 
 /** PRAGMA user_version: 0 in a new file, 1 once something has been saved. */
 const SAVED_VERSION = 1;
 const OWNER_ONLY = 0o600;
-const KINDS: readonly Kind[] = ['works', 'terms', 'pool'];
+const KINDS: readonly Kind[] = ['works', 'terms', 'readings', 'pool'];
 
 export interface Database {
   /** Everything saved, or null if nothing has ever been saved (a new database). */
@@ -131,6 +141,14 @@ const toTerm = (row: Row): Term => ({
   source: orUndefined(row.source),
 });
 
+const toReading = (row: Row): Reading => ({
+  id: text(row.reading_id, 'Reading id'),
+  title: text(row.title, 'Title'),
+  author: text(row.author, 'Author'),
+  excerpt: text(row.excerpt, 'Excerpt'),
+  source: text(row.source, 'Source'),
+});
+
 /** Opens (creating if needed) the database in `file`. Pass ':memory:' for a throwaway one. */
 export function openDatabase(file: string): Database {
   const sqlite = new DatabaseSync(file);
@@ -149,6 +167,7 @@ export function openDatabase(file: string): Database {
       course: orUndefined(exam.course),
       works: rows('SELECT * FROM works WHERE exam_id = ? ORDER BY position', exam.id as number).map(toWork),
       terms: rows('SELECT * FROM terms WHERE exam_id = ? ORDER BY position', exam.id as number).map(toTerm),
+      readings: rows('SELECT * FROM readings WHERE exam_id = ? ORDER BY position', exam.id as number).map(toReading),
       filter: checkedFilter(typeof exam.filter === 'string' ? JSON.parse(exam.filter) : null),
       stats: checkedStats(JSON.parse(text(exam.stats, 'Scores'))),
     }));
@@ -157,13 +176,15 @@ export function openDatabase(file: string): Database {
   }
 
   function writeAll(data: StudyData): void {
-    sqlite.exec('DELETE FROM terms; DELETE FROM works; DELETE FROM exams; DELETE FROM courses;');
+    sqlite.exec('DELETE FROM readings; DELETE FROM terms; DELETE FROM works; DELETE FROM exams; DELETE FROM courses;');
 
     const addCourse = sqlite.prepare('INSERT INTO courses (position, name) VALUES (?, ?)');
     const addExam = sqlite.prepare('INSERT INTO exams (id, name, course, filter, stats) VALUES (?, ?, ?, ?, ?)');
     const addWork = sqlite.prepare(`INSERT INTO works (exam_id, position, work_id, title, artist, nationality, movement, date, image, source)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const addTerm = sqlite.prepare('INSERT INTO terms (exam_id, position, term, definition, source) VALUES (?, ?, ?, ?, ?)');
+
+    const addReading = sqlite.prepare('INSERT INTO readings (exam_id, position, reading_id, title, author, excerpt, source) VALUES (?, ?, ?, ?, ?, ?, ?)');
 
     data.courses.forEach((name, position) => addCourse.run(position, text(name, 'Class name')));
 
@@ -180,6 +201,10 @@ export function openDatabase(file: string): Database {
       ));
       exam.terms.forEach((term, position) => addTerm.run(
         examId, position, text(term.term, 'Term'), text(term.definition, 'Definition'), optionalText(term.source, 'Source'),
+      ));
+      exam.readings.forEach((reading, position) => addReading.run(
+        examId, position, text(reading.id, 'Reading id'), text(reading.title, 'Title'), text(reading.author, 'Author'),
+        text(reading.excerpt, 'Excerpt'), text(reading.source, 'Source'),
       ));
     });
     sqlite.exec(`PRAGMA user_version = ${SAVED_VERSION}`); // a constant, not user input

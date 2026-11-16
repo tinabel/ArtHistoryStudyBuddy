@@ -4,6 +4,7 @@ import type { Exam } from '../types.js';
 import { indexOf, type ActionMap } from './actions.js';
 import { byId, escapeHtml, field } from './dom.js';
 import * as editor from './editor.js';
+import * as readingList from './readingList.js';
 import * as study from './study.js';
 
 function scoreSuffix(exam: Exam): string {
@@ -27,11 +28,12 @@ const examRow = (exam: Exam, index: number): string => `
   <div class="row">
     <div>
       <strong>${escapeHtml(exam.name)}</strong><br>
-      <span class="small">${exam.works.length} works · ${exam.terms.length} terms${exam.filter ? ' · random pool' : ''}${scoreSuffix(exam)}</span>
+      <span class="small">${exam.readings.length} readings · ${exam.works.length} artworks · ${exam.terms.length} terms${exam.filter ? ' · random pool' : ''}${scoreSuffix(exam)}</span>
     </div>
     <div>
       ${courseSelect(exam, index)}
       <button type="button" data-action="home.study" data-i="${index}">Study</button>
+      ${exam.readings.length ? `<button type="button" class="secondary" data-action="home.readings" data-i="${index}">Readings</button>` : ''}
       <button type="button" class="secondary" title="Reset scores" data-action="home.reset" data-i="${index}">↺</button>
       <button type="button" class="danger" title="Delete exam" data-action="home.delete" data-i="${index}">✕</button>
     </div>
@@ -66,6 +68,10 @@ export const actions: ActionMap = {
   'home.study': (element) => {
     const exam = getExams()[indexOf(element)];
     if (exam) study.start(exam);
+  },
+  'home.readings': (element) => {
+    const exam = getExams()[indexOf(element)];
+    if (exam) readingList.open(exam);
   },
   'home.reset': (element) => { resetStats(indexOf(element)); render(); },
   'home.delete': (element) => { removeExam(indexOf(element)); render(); },

@@ -3,12 +3,14 @@ import * as met from '../api/met.js';
 import { formatTermLines, parseTermLines } from '../markdown.js';
 import { validateImageUrl } from '../imageUrl.js';
 import { importExam } from '../services/importer.js';
-import { searchWorks, WORK_SOURCES, type FoundWork } from '../services/workSearch.js';
+import type { Found } from '../services/multiSearch.js';
+import { searchWorks, WORK_SOURCES } from '../services/workSearch.js';
 import { addExam, getCourses, makeExam } from '../store.js';
 import type { Filter, Work } from '../types.js';
 import { indexOf, type ActionMap } from './actions.js';
-import { byId, escapeHtml, field, resultRow } from './dom.js';
+import { byId, chosenSourceIds, escapeHtml, field, renderSourceChoices, resultRow } from './dom.js';
 import { fileToDataUrl } from './image.js';
+import * as readingsEditor from './readingsEditor.js';
 import { go } from './router.js';
 
 // Draft state for the exam being built
@@ -16,7 +18,7 @@ let works: Work[] = [];
 // term -> source URL (for auto-filled definitions). A Map, not a plain object: a term can be called anything,
 // and looking up "constructor" in a plain object finds a built-in function instead of nothing.
 const termSources = new Map<string, string>();
-let searchResults: FoundWork[] = [];
+let searchResults: Found<Work>[] = [];
 let departmentsLoaded = false;
 
 const input = (id: string): HTMLInputElement => field(id, HTMLInputElement);
@@ -45,23 +47,13 @@ function renderWorks(): void {
 /** Shows the search results, with an optional line above them (progress, "nothing found", a place that failed). */
 function renderSearchResults(message: string): void {
   const note = message ? `<div class="small">${escapeHtml(message)}</div>` : '';
-  byId('searchResults').innerHTML = note + searchResults.map(({ work, sourceLabel }, index) => resultRow({
+  byId('searchResults').innerHTML = note + searchResults.map(({ item: work, sourceLabel }, index) => resultRow({
     image: work.image,
     title: work.title,
     subtitle: [`${work.artist || 'Unknown'}${work.nationality ? ` (${work.nationality})` : ''}`, work.date, sourceLabel].filter(Boolean).join(' · '),
     button: `<button type="button" data-action="editor.addResult" data-i="${index}">Add</button>`,
   })).join('');
 }
-
-/** One checkbox per place to search, all ticked to start with. Built once, so choices last while the app is open. */
-function renderSearchSources(): void {
-  if (byId('searchSources').childElementCount) return;
-  byId('searchSources').innerHTML = WORK_SOURCES.map((source) =>
-    `<label><input type="checkbox" value="${escapeHtml(source.id)}" checked> ${escapeHtml(source.label)}</label>`).join('');
-}
-
-const chosenSourceIds = (): string[] =>
-  [...document.querySelectorAll<HTMLInputElement>('#searchSources input:checked')].map((checkbox) => checkbox.value);
 
 async function loadDepartments(): Promise<void> {
   if (departmentsLoaded) return;
@@ -86,8 +78,9 @@ export function open(course = ''): void {
   termsBox().value = '';
   input('useFilter').checked = false;
   byId('filterFields').hidden = true;
-  renderSearchSources();
+  renderSourceChoices('searchSources', WORK_SOURCES);
   renderSearchResults('');
+  readingsEditor.reset();
   renderWorks();
   say('');
   go('editor');
@@ -145,8 +138,10 @@ async function importFile(path: string): Promise<void> {
   terms.value = existing ? `${existing}\n${lines}` : lines;
 
   imported.works.forEach(addWork);
+  imported.readings.forEach(readingsEditor.add);
 
-  say(`Imported ${imported.terms.length} terms (definitions auto-filled from Wikipedia — review!), ${imported.works.length} works.` +
+  say(`Imported ${imported.readings.length} readings, ${imported.works.length} artworks and ${imported.terms.length} terms (definitions auto-filled from Wikipedia — review!).` +
+    (imported.noText.length ? ` Nothing found to read for: ${imported.noText.join('; ')}.` : '') +
     (imported.badImage.length ? ` Could not use the picture given for: ${imported.badImage.join('; ')} (searched instead).` : '') +
     (imported.noImage.length ? ` No image: ${imported.noImage.join('; ')}` : ''));
 }
@@ -170,10 +165,11 @@ function save(): void {
   const terms = parseTermLines(termsBox().value).map((term) => ({ ...term, source: termSources.get(term.term) ?? '' }));
   const result = readFilter();
   if ('error' in result) { say(result.error); return; }
-  if (!works.length && !terms.length && !result.filter) { say('Add works, terms, or a random pool.'); return; }
+  const readings = readingsEditor.current();
+  if (!works.length && !terms.length && !readings.length && !result.filter) { say('Add readings, artworks, terms, or a random pool.'); return; }
 
   try {
-    addExam(makeExam({ name, course: courseSelect().value, works, terms, filter: result.filter }));
+    addExam(makeExam({ name, course: courseSelect().value, works, terms, readings, filter: result.filter }));
   } catch {
     say('Could not save the exam. Nothing was changed.');
     return;
@@ -185,6 +181,7 @@ export const actions: ActionMap = {
   'editor.cancel': () => { go('home'); },
   'editor.save': save,
   'editor.toggleFilter': (element) => { byId('filterFields').hidden = !(element as HTMLInputElement).checked; },
+  ...readingsEditor.actions,
   'editor.removeWork': (element) => { works.splice(indexOf(element), 1); renderWorks(); },
   'editor.setWorkImage': (element) => {
     const work = works[indexOf(element)];
@@ -198,7 +195,7 @@ export const actions: ActionMap = {
   },
   'editor.addResult': (element) => {
     const result = searchResults[indexOf(element)];
-    if (result) addWork(result.work);
+    if (result) addWork(result.item);
   },
   'editor.importPath': () => {
     const path = input('mdPath').value.trim();
@@ -214,7 +211,7 @@ export const actions: ActionMap = {
   'editor.search': async () => {
     const query = input('searchQ').value.trim();
     if (!query) return;
-    const sourceIds = chosenSourceIds();
+    const sourceIds = chosenSourceIds('searchSources');
     searchResults = [];
     if (!sourceIds.length) { renderSearchResults('Tick at least one place to search.'); return; }
     renderSearchResults('Searching...');

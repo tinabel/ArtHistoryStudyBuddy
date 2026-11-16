@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src https://collectionapi.metmuseum.org https://api.artic.edu https://openaccess-api.clevelandart.org https://commons.wikimedia.org https://www.wikidata.org https://en.wikipedia.org; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src https://collectionapi.metmuseum.org https://archive.org https://api.artic.edu https://openaccess-api.clevelandart.org https://commons.wikimedia.org https://www.wikidata.org https://en.wikipedia.org; base-uri 'none'; form-action 'none'">
 <title>Art History Study Buddy</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -34,13 +34,25 @@
       <button type="button" class="secondary" data-action="editor.browse">Browse…</button>
     </div>
     <div class="small">
-      Sections: <code>## Must Know Works</code> (<code>- Artist, Title, Date</code>) and
-      <code>## Must Know Terms</code> (<code>- Term</code> or <code>- Term: definition</code>).
+      Sections: <code>## Readings</code> (<code>- Title by Author</code> or <code>- [Title](https://…)</code>),
+      <code>## Artworks</code> (<code>- Artist, Title, Date</code>) and
+      <code>## Terms</code> (<code>- Term</code> or <code>- Term: definition</code>).
       Missing definitions are filled from Wikipedia.
     </div>
   </div>
 
-  <h3>Must Know Works</h3>
+  <h3>Readings</h3>
+  <div class="field-row">
+    <input type="text" id="readingQ" class="grow" aria-label="Search for a reading, or paste a link" placeholder="Title or author, or paste an https:// link" data-enter="readings.search">
+    <button type="button" data-action="readings.search">Search</button>
+  </div>
+  <div id="readingSources" class="check-row small" role="group" aria-label="Places to search"></div>
+  <div id="readingMsg" class="small"></div>
+  <div id="readingResults"></div>
+  <div class="small">Added (<span id="readingCount">0</span>)</div>
+  <div id="readingList"></div>
+
+  <h3>Artworks</h3>
   <div class="field-row">
     <input type="text" id="searchQ" class="grow" aria-label="Search for a work" placeholder="Search by title or artist" data-enter="editor.search">
     <button type="button" data-action="editor.search">Search</button>
@@ -50,7 +62,7 @@
   <div class="small">Added (<span id="addedCount">0</span>)</div>
   <div id="addedList"></div>
 
-  <h3>Must Know Terms</h3>
+  <h3>Terms</h3>
   <textarea id="exTerms" class="wide" aria-label="Terms, one per line" rows="5" placeholder="One per line:&#10;term: definition&#10;Chiaroscuro: strong light/dark contrast"></textarea>
 
   <h3>Random art pool (optional)</h3>
@@ -84,6 +96,13 @@
   </div>
   <div id="card"></div>
   <div id="score" class="small"></div>
+</section>
+
+<!-- Readings list -->
+<section id="readingList" class="panel" hidden>
+  <h2 id="readingListTitle">Readings</h2>
+  <button type="button" class="secondary" data-action="readingList.back">&larr; Exams</button>
+  <div id="readingListBody"></div>
 </section>
 
 <script type="module" src="js/app.js"></script>

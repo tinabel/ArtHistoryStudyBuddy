@@ -74,7 +74,7 @@ describe('searchWorks service', () => {
     ]);
     const outcome = await searchWorks('haystacks', ['artic', 'cleveland']);
     expect(outcome.failed).toEqual(['Cleveland Museum of Art']);
-    expect(outcome.found.map((found) => found.work.title)).toEqual(['Haystacks', 'Detail of Haystacks']);
+    expect(outcome.found.map((found) => found.item.title)).toEqual(['Haystacks', 'Detail of Haystacks']);
     expect(outcome.found[0]?.sourceLabel).toBe('Art Institute of Chicago');
   });
 });

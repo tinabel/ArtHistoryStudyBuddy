@@ -16,10 +16,14 @@ const data: StudyData = {
         { id: 'md-Manet|Olympia', title: 'Olympia', artist: 'Édouard Manet', nationality: '', date: '1863', image: '' },
       ],
       terms: [{ term: 'Sublime', definition: 'awe mixed with terror', source: 'https://en.wikipedia.org/wiki/Sublime' }, { term: 'Impasto', definition: '' }],
+      readings: [
+        { id: 'gutenberg-84', title: 'Frankenstein', author: 'Mary Shelley', excerpt: 'You will rejoice to hear...', source: 'https://www.gutenberg.org/ebooks/84' },
+        { id: 'text-Ways of Seeing|John Berger', title: 'Ways of Seeing', author: 'John Berger', excerpt: '', source: '' },
+      ],
       filter: null,
-      stats: { works: { correct: 3, total: 4 } },
+      stats: { works: { correct: 3, total: 4 }, readings: { correct: 1, total: 2 } },
     },
-    { name: 'Random pool', works: [], terms: [], filter: { deptId: '11', deptName: 'European Paintings', from: '1800', to: '1900', q: 'landscape' }, stats: {} },
+    { name: 'Random pool', works: [], terms: [], readings: [], filter: { deptId: '11', deptName: 'European Paintings', from: '1800', to: '1900', q: 'landscape' }, stats: {} },
   ],
 };
 
@@ -55,8 +59,8 @@ it('gives back exactly what was saved: order, number and text ids, and unset ver
 it('replaces everything on each save', () => {
   const database = openDatabase(':memory:');
   database.save(data);
-  database.save({ courses: ['Art History 200'], exams: [{ name: 'Final', works: [], terms: [], filter: null, stats: {} }] });
-  expect(database.load()).toEqual({ courses: ['Art History 200'], exams: [{ name: 'Final', works: [], terms: [], filter: null, stats: {} }] });
+  database.save({ courses: ['Art History 200'], exams: [{ name: 'Final', works: [], terms: [], readings: [], filter: null, stats: {} }] });
+  expect(database.load()).toEqual({ courses: ['Art History 200'], exams: [{ name: 'Final', works: [], terms: [], readings: [], filter: null, stats: {} }] });
 });
 
 it('keeps what was saved before when a save fails part-way', () => {
@@ -69,7 +73,7 @@ it('keeps what was saved before when a save fails part-way', () => {
 
 it('refuses values of the wrong kind, and stores SQL-looking text as plain text', () => {
   const database = openDatabase(':memory:');
-  const exam = { name: 'Exam', works: [], terms: [], filter: null, stats: {} };
+  const exam = { name: 'Exam', works: [], terms: [], readings: [], filter: null, stats: {} };
   const save = (changes: object): void => { database.save({ courses: [], exams: [{ ...exam, ...changes }] }); };
   expect(() => { save({ name: 42 }); }).toThrow('Exam name must be text');
   expect(() => { save({ stats: { works: { correct: '<b>1</b>', total: 2 } } }); }).toThrow('A score must be a count');

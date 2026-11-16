@@ -68,11 +68,11 @@ function upgradeStats(saved: SavedExam['stats'] = {}): Exam['stats'] {
 
 function upgrade(saved: SavedExam): Exam {
   if (saved.type === 'list') {
-    return { name: saved.name, works: (saved.items ?? []).map(upgradeWork), terms: [], filter: null, stats: {} };
+    return { name: saved.name, works: (saved.items ?? []).map(upgradeWork), terms: [], readings: [], filter: null, stats: {} };
   }
   if (saved.type === 'filter') {
     return {
-      name: saved.name, works: [], terms: [], stats: {},
+      name: saved.name, works: [], terms: [], readings: [], stats: {},
       filter: { deptId: saved.deptId ?? '', deptName: saved.deptName, from: saved.from ?? '', to: saved.to ?? '', q: saved.q ?? '' },
     };
   }
@@ -80,6 +80,7 @@ function upgrade(saved: SavedExam): Exam {
     name: saved.name,
     works: (saved.works ?? []).map(upgradeWork),
     terms: (saved.terms ?? []).map(upgradeTerm),
+    readings: [],
     filter: saved.filter ?? null,
     stats: upgradeStats(saved.stats),
   };
