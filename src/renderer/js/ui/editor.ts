@@ -5,7 +5,7 @@ import { importExam } from '../services/importer.js';
 import { addExam, getCourses, makeExam } from '../store.js';
 import type { Filter, Work } from '../types.js';
 import { indexOf, type ActionMap } from './actions.js';
-import { $, esc, field, resultRow } from './dom.js';
+import { byId, escapeHtml, field, resultRow } from './dom.js';
 import { go } from './router.js';
 
 // Draft state for the exam being built
@@ -18,37 +18,37 @@ const input = (id: string): HTMLInputElement => field(id, HTMLInputElement);
 const termsBox = (): HTMLTextAreaElement => field('exTerms', HTMLTextAreaElement);
 const deptSelect = (): HTMLSelectElement => field('exDept', HTMLSelectElement);
 const courseSelect = (): HTMLSelectElement => field('exCourse', HTMLSelectElement);
-const say = (message: string): void => { $('editorMsg').textContent = message; };
+const say = (message: string): void => { byId('editorMsg').textContent = message; };
 
 function addWork(work: Work): void {
-  if (!works.some((w) => w.id === work.id)) works.push(work);
+  if (!works.some((added) => added.id === work.id)) works.push(work);
   renderWorks();
 }
 
 function renderWorks(): void {
-  $('addedCount').textContent = String(works.length);
-  $('addedList').innerHTML = works.map((w, i) => resultRow({
-    img: w.img,
-    title: w.title,
-    button: `<button type="button" class="danger" data-action="editor.removeWork" data-i="${i}">✕</button>`,
+  byId('addedCount').textContent = String(works.length);
+  byId('addedList').innerHTML = works.map((work, index) => resultRow({
+    img: work.img,
+    title: work.title,
+    button: `<button type="button" class="danger" data-action="editor.removeWork" data-i="${index}">✕</button>`,
   })).join('');
 }
 
 function renderSearchResults(message: string): void {
-  $('searchResults').innerHTML = message
-    ? `<div class="small">${esc(message)}</div>`
-    : searchResults.map((w, i) => resultRow({
-      img: w.img,
-      title: w.title,
-      subtitle: `${w.artist || 'Unknown'}${w.nationality ? ` (${w.nationality})` : ''} · ${w.date}`,
-      button: `<button type="button" data-action="editor.addResult" data-i="${i}">Add</button>`,
+  byId('searchResults').innerHTML = message
+    ? `<div class="small">${escapeHtml(message)}</div>`
+    : searchResults.map((work, index) => resultRow({
+      img: work.img,
+      title: work.title,
+      subtitle: `${work.artist || 'Unknown'}${work.nationality ? ` (${work.nationality})` : ''} · ${work.date}`,
+      button: `<button type="button" data-action="editor.addResult" data-i="${index}">Add</button>`,
     })).join('');
 }
 
 async function loadDepartments(): Promise<void> {
   if (departmentsLoaded) return;
   try {
-    for (const d of await met.listDepartments()) deptSelect().add(new Option(d.displayName, String(d.departmentId)));
+    for (const department of await met.listDepartments()) deptSelect().add(new Option(department.displayName, String(department.departmentId)));
     departmentsLoaded = true;
   } catch {
     say('Could not load departments (offline?).');
@@ -67,7 +67,7 @@ export function open(course = ''): void {
   for (const id of ['exName', 'exFrom', 'exTo', 'exQ', 'searchQ', 'mdPath']) input(id).value = '';
   termsBox().value = '';
   input('useFilter').checked = false;
-  $('filterFields').hidden = true;
+  byId('filterFields').hidden = true;
   renderSearchResults('');
   renderWorks();
   say('');
@@ -107,7 +107,7 @@ async function importFile(path: string): Promise<void> {
   const imported = await importExam(text, say);
   if (!input('exName').value) input('exName').value = imported.title;
 
-  for (const t of imported.terms) if (t.src) termSources[t.term] = t.src;
+  for (const term of imported.terms) if (term.src) termSources[term.term] = term.src;
   const terms = termsBox();
   const existing = terms.value.trim();
   const lines = formatTermLines(imported.terms);
@@ -135,7 +135,7 @@ function save(): void {
   const name = input('exName').value.trim();
   if (!name) { say('Name required.'); return; }
 
-  const terms = parseTermLines(termsBox().value).map((t) => ({ ...t, src: termSources[t.term] ?? '' }));
+  const terms = parseTermLines(termsBox().value).map((term) => ({ ...term, src: termSources[term.term] ?? '' }));
   const result = readFilter();
   if ('error' in result) { say(result.error); return; }
   if (!works.length && !terms.length && !result.filter) { say('Add works, terms, or a random pool.'); return; }
@@ -152,10 +152,10 @@ function save(): void {
 export const actions: ActionMap = {
   'editor.cancel': () => { go('home'); },
   'editor.save': save,
-  'editor.toggleFilter': (el) => { $('filterFields').hidden = !(el as HTMLInputElement).checked; },
-  'editor.removeWork': (el) => { works.splice(indexOf(el), 1); renderWorks(); },
-  'editor.addResult': (el) => {
-    const work = searchResults[indexOf(el)];
+  'editor.toggleFilter': (element) => { byId('filterFields').hidden = !(element as HTMLInputElement).checked; },
+  'editor.removeWork': (element) => { works.splice(indexOf(element), 1); renderWorks(); },
+  'editor.addResult': (element) => {
+    const work = searchResults[indexOf(element)];
     if (work) addWork(work);
   },
   'editor.importPath': () => {

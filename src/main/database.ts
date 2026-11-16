@@ -22,7 +22,7 @@ const SCHEMA = `
     name   TEXT NOT NULL,
     course TEXT,                  -- class name; NULL = not in a class
     filter TEXT,                  -- random-art filter as JSON; NULL = none
-    stats  TEXT NOT NULL          -- scores as JSON, e.g. {"works":{"c":3,"t":4}}
+    stats  TEXT NOT NULL          -- scores as JSON, e.g. {"works":{"correct":3,"total":4}}
   );
   CREATE TABLE IF NOT EXISTS works (
     exam_id     INTEGER NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
@@ -101,11 +101,11 @@ function checkedFilter(value: unknown): Filter | null {
 
 /** A copy holding only the known kinds of score, each checked. */
 function checkedStats(value: unknown): Exam['stats'] {
-  const given = (value ?? {}) as Record<string, { c?: unknown; t?: unknown } | undefined>;
+  const given = (value ?? {}) as Record<string, { correct?: unknown; total?: unknown } | undefined>;
   const stats: Exam['stats'] = {};
   for (const kind of KINDS) {
     const score = given[kind];
-    if (score) stats[kind] = { c: count(score.c, 'A score'), t: count(score.t, 'A score') };
+    if (score) stats[kind] = { correct: count(score.correct, 'A score'), total: count(score.total, 'A score') };
   }
   return stats;
 }

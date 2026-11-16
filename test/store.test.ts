@@ -36,7 +36,7 @@ describe('loading', () => {
   it('loads what the database holds', async () => {
     install({ saved: { courses: ['Art History 101'], exams: [{ name: 'Midterm', course: 'Art History 101', works: [], terms: [], filter: null, stats: {} }] } });
     const store = await freshStore();
-    expect(store.getExams().map((e) => e.name)).toEqual(['Midterm']);
+    expect(store.getExams().map((exam) => exam.name)).toEqual(['Midterm']);
     expect(store.getCourses()).toEqual(['Art History 101']);
   });
 });
@@ -45,8 +45,8 @@ describe('exams from before the database (localStorage)', () => {
   it('are carried over into the database the first time', async () => {
     const database = install({ legacy: JSON.stringify([{ name: 'Old Exam', works: [], terms: [], filter: null, stats: { terms: { c: 1, t: 2 } } }]) });
     const store = await freshStore();
-    expect(store.getExams()[0]).toMatchObject({ name: 'Old Exam', stats: { terms: { c: 1, t: 2 } } });
-    expect(database.saved?.exams.map((e) => e.name)).toEqual(['Old Exam']);
+    expect(store.getExams()[0]).toMatchObject({ name: 'Old Exam', stats: { terms: { correct: 1, total: 2 } } });
+    expect(database.saved?.exams.map((exam) => exam.name)).toEqual(['Old Exam']);
   });
 
   it('are ignored once the database has been saved to, even if it is now empty', async () => {
@@ -58,7 +58,7 @@ describe('exams from before the database (localStorage)', () => {
     install({ legacy: '{not json' });
     expect((await freshStore()).getExams()).toEqual([]);
     install({ legacy: JSON.stringify([null, 7, { name: 'Good' }]) });
-    expect((await freshStore()).getExams().map((e) => e.name)).toEqual(['Good']);
+    expect((await freshStore()).getExams().map((exam) => exam.name)).toEqual(['Good']);
   });
 
   it('are upgraded from the old "list" and "filter" formats', async () => {
@@ -88,7 +88,7 @@ describe('saving', () => {
 
     database.saveData = () => { throw new Error('disk full'); };
     expect(() => { store.addExam(store.makeExam({ name: 'Final' })); }).toThrow('disk full');
-    expect(store.getExams().map((e) => e.name)).toEqual(['Midterm']);
+    expect(store.getExams().map((exam) => exam.name)).toEqual(['Midterm']);
   });
 
   it('removeExam deletes by index and saves', async () => {
@@ -97,8 +97,8 @@ describe('saving', () => {
     store.addExam(store.makeExam({ name: 'A' }));
     store.addExam(store.makeExam({ name: 'B' }));
     store.removeExam(0);
-    expect(store.getExams().map((e) => e.name)).toEqual(['B']);
-    expect(database.saved?.exams.map((e) => e.name)).toEqual(['B']);
+    expect(store.getExams().map((exam) => exam.name)).toEqual(['B']);
+    expect(database.saved?.exams.map((exam) => exam.name)).toEqual(['B']);
   });
 
   it('saveExams saves in-place edits', async () => {
@@ -121,10 +121,10 @@ describe('scores', () => {
     store.recordResult(exam, 'works', true);
     store.recordResult(exam, 'works', false);
     store.recordResult(exam, 'terms', true);
-    expect(store.kindStats(exam, 'works')).toEqual({ c: 1, t: 2 });
-    expect(store.kindStats(exam, 'terms')).toEqual({ c: 1, t: 1 });
+    expect(store.kindStats(exam, 'works')).toEqual({ correct: 1, total: 2 });
+    expect(store.kindStats(exam, 'terms')).toEqual({ correct: 1, total: 1 });
     expect(store.kindStats(exam, 'pool')).toBeUndefined();
-    expect(store.overallStats(exam)).toEqual({ c: 2, t: 3 });
+    expect(store.overallStats(exam)).toEqual({ correct: 2, total: 3 });
   });
 
   it('survive a reload', async () => {
@@ -132,20 +132,20 @@ describe('scores', () => {
     const exam = store.makeExam({ name: 'E' });
     store.addExam(exam);
     store.recordResult(exam, 'terms', true);
-    expect((await freshStore()).getExams()[0]?.stats).toEqual({ terms: { c: 1, t: 1 } });
+    expect((await freshStore()).getExams()[0]?.stats).toEqual({ terms: { correct: 1, total: 1 } });
   });
 
   it('resetStats clears one exam only', async () => {
     const store = await freshStore();
-    const a = store.makeExam({ name: 'A' });
-    const b = store.makeExam({ name: 'B' });
-    store.addExam(a);
-    store.addExam(b);
-    store.recordResult(a, 'works', true);
-    store.recordResult(b, 'works', true);
+    const examA = store.makeExam({ name: 'A' });
+    const examB = store.makeExam({ name: 'B' });
+    store.addExam(examA);
+    store.addExam(examB);
+    store.recordResult(examA, 'works', true);
+    store.recordResult(examB, 'works', true);
     store.resetStats(0);
-    expect(store.overallStats(a)).toEqual({ c: 0, t: 0 });
-    expect(store.overallStats(b)).toEqual({ c: 1, t: 1 });
+    expect(store.overallStats(examA)).toEqual({ correct: 0, total: 0 });
+    expect(store.overallStats(examB)).toEqual({ correct: 1, total: 1 });
   });
 });
 

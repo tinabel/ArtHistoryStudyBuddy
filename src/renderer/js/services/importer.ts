@@ -18,26 +18,26 @@ export async function importExam(text: string, onProgress: (message: string) => 
   const parsed = parseExamMarkdown(text);
 
   const terms: Term[] = [];
-  for (const [i, t] of parsed.terms.entries()) {
-    let { def } = t;
+  for (const [index, term] of parsed.terms.entries()) {
+    let { def } = term;
     let src = '';
     if (!def) {
-      onProgress(`Defining term ${i + 1}/${parsed.terms.length}...`);
-      ({ def, src } = await define(t.term));
+      onProgress(`Defining term ${index + 1}/${parsed.terms.length}...`);
+      ({ def, src } = await define(term.term));
     }
-    terms.push({ term: t.term, def, src });
+    terms.push({ term: term.term, def, src });
   }
 
   const works: Work[] = [];
   const noImage: string[] = [];
-  for (const [i, w] of parsed.works.entries()) {
-    onProgress(`Looking up work ${i + 1}/${parsed.works.length}...`);
-    const [{ img, src }, info] = await Promise.all([findWorkImage(w), lookupWorkInfo(w)]);
-    if (!img) noImage.push(w.title);
+  for (const [index, work] of parsed.works.entries()) {
+    onProgress(`Looking up work ${index + 1}/${parsed.works.length}...`);
+    const [{ img, src }, info] = await Promise.all([findWorkImage(work), lookupWorkInfo(work)]);
+    if (!img) noImage.push(work.title);
     // After a failed lookup (null) leave the fields unset (not ''), so studying the exam fills them in later.
     works.push({
-      id: `md-${w.artist}|${w.title}`, title: w.title, artist: w.artist, nationality: info?.nationality,
-      movement: w.movement ?? info?.movement, date: w.date, img, src,
+      id: `md-${work.artist}|${work.title}`, title: work.title, artist: work.artist, nationality: info?.nationality,
+      movement: work.movement ?? info?.movement, date: work.date, img, src,
     });
   }
 

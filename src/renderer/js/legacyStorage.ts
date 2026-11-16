@@ -1,6 +1,6 @@
 // Reads exams saved by versions of the app from before the SQLite database, which kept them in the browser's
 // localStorage. Read-only: it is used once, to carry old exams over (see `load` in store.ts).
-import type { Exam, Filter, Term, Work } from './types.js';
+import type { Exam, Filter, Kind, Term, Work } from './types.js';
 
 const KEY = 'exams';
 
@@ -21,7 +21,8 @@ interface SavedExam {
   works?: Work[];
   terms?: Term[];
   filter?: Filter | null;
-  stats?: Exam['stats'];
+  /** Scores used to be saved with one-letter names: c = correct, t = total. */
+  stats?: Partial<Record<Kind, { c: number; t: number }>>;
 }
 
 /** Old data can lack fields the database insists on. */
@@ -29,6 +30,12 @@ const completeWork = (work: Partial<Work>): Work =>
   ({ ...work, id: work.id ?? '', title: work.title ?? '', artist: work.artist ?? '', date: work.date ?? '', img: work.img ?? '' });
 
 const completeTerm = (term: Partial<Term>): Term => ({ ...term, term: term.term ?? '', def: term.def ?? '' });
+
+function upgradeStats(saved: SavedExam['stats'] = {}): Exam['stats'] {
+  const stats: Exam['stats'] = {};
+  for (const [kind, score] of Object.entries(saved)) stats[kind as Kind] = { correct: score.c, total: score.t };
+  return stats;
+}
 
 function upgrade(saved: SavedExam): Exam {
   if (saved.type === 'list') {
@@ -45,7 +52,7 @@ function upgrade(saved: SavedExam): Exam {
     works: (saved.works ?? []).map(completeWork),
     terms: (saved.terms ?? []).map(completeTerm),
     filter: saved.filter ?? null,
-    stats: saved.stats ?? {},
+    stats: upgradeStats(saved.stats),
   };
   if (typeof saved.course === 'string' && saved.course) exam.course = saved.course;
   return exam;

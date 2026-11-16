@@ -77,7 +77,7 @@ describe('lookupArtistInfo', () => {
   it('does not retry plain names, and handles empty input', async () => {
     const calls = stubFetch([['wbsearchentities', { search: [] }]]);
     expect(await lookupArtistInfo('Plain Person')).toEqual({ nationality: '', movement: '' });
-    expect(calls.filter((c) => c.includes('wbsearchentities'))).toHaveLength(1);
+    expect(calls.filter((call) => call.includes('wbsearchentities'))).toHaveLength(1);
     expect(await lookupArtistInfo('')).toEqual({ nationality: '', movement: '' });
   });
 });
@@ -126,12 +126,12 @@ describe('importExam', () => {
       commonsHit('File:Courbet Stone Breakers.jpg'),
       ...artist('Gustave\\+Courbet', 'Q503', 'Q603', { id: 'Q903', label: 'realism' }),
     ]);
-    const md = [
+    const markdown = [
       '# Course Exam', '## Must Know Works', '- Gustave Courbet, The Stone Breakers, 1849 (p. 1012)',
       '## Must Know Terms', '- Realism', '- Sublime: given definition',
     ].join('\n');
     const messages: string[] = [];
-    const result = await importExam(md, (m) => messages.push(m));
+    const result = await importExam(markdown, (message) => messages.push(message));
 
     expect(result.title).toBe('Course Exam');
     expect(result.terms).toEqual([
@@ -143,8 +143,8 @@ describe('importExam', () => {
       nationality: 'Testish', movement: 'Realism', date: '1849', img: 'thumb.jpg', src: 'https://commons/desc',
     }]);
     expect(result.noImage).toEqual([]);
-    expect(messages.some((m) => m.includes('Defining term 1/2'))).toBe(true);
-    expect(messages.some((m) => m.includes('Looking up work 1/1'))).toBe(true);
+    expect(messages.some((message) => message.includes('Defining term 1/2'))).toBe(true);
+    expect(messages.some((message) => message.includes('Looking up work 1/1'))).toBe(true);
   });
 
   it('a movement written in the markdown overrides the Wikidata one', async () => {
@@ -152,8 +152,8 @@ describe('importExam', () => {
       commonsHit('File:Delacroix Liberty.jpg'),
       ...artist('Eug.+ne\\+Delacroix|Delacroix', 'Q507', 'Q607', { id: 'Q907', label: 'romanticism' }),
     ]);
-    const md = '## Must Know Works\n- Eugène Delacroix, Liberty Leading the People, 1830 (movement: Orientalism)';
-    const result = await importExam(md);
+    const markdown = '## Must Know Works\n- Eugène Delacroix, Liberty Leading the People, 1830 (movement: Orientalism)';
+    const result = await importExam(markdown);
     expect(result.works[0]?.movement).toBe('Orientalism');
   });
 

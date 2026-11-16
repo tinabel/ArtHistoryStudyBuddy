@@ -20,15 +20,15 @@ interface CommonsResponse {
  */
 export async function findImage(query: string, surname: string): Promise<WorkImage | null> {
   try {
-    const r = await getJson<CommonsResponse>(ENDPOINT, {
+    const response = await getJson<CommonsResponse>(ENDPOINT, {
       action: 'query', generator: 'search', gsrnamespace: '6', gsrlimit: '8',
       gsrsearch: query, prop: 'imageinfo', iiprop: 'url', iiurlwidth: '600',
       format: 'json', origin: '*',
     });
-    const pages = Object.values(r.query?.pages ?? {})
-      .sort((a, b) => a.index - b.index)
-      .filter((p) => /\.(jpe?g|png)$/i.test(p.title) && p.imageinfo?.[0]?.thumburl);
-    const best = pages.find((p) => surname && p.title.toLowerCase().includes(surname)) ?? pages[0];
+    const pages = Object.values(response.query?.pages ?? {})
+      .sort((first, second) => first.index - second.index)
+      .filter((page) => /\.(jpe?g|png)$/i.test(page.title) && page.imageinfo?.[0]?.thumburl);
+    const best = pages.find((page) => surname && page.title.toLowerCase().includes(surname)) ?? pages[0];
     const info = best?.imageinfo?.[0];
     if (info?.thumburl) return { img: info.thumburl, src: info.descriptionurl ?? '' };
   } catch {

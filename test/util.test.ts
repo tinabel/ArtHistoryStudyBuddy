@@ -20,7 +20,7 @@ describe('util', () => {
 
   it('pick returns an element of the array', () => {
     const items = ['x', 'y', 'z'];
-    for (let i = 0; i < 30; i++) expect(items).toContain(pick(items));
+    for (let round = 0; round < 30; round++) expect(items).toContain(pick(items));
   });
 
   it('surnameOf: last word, letters only, lowercase, accents kept', () => {

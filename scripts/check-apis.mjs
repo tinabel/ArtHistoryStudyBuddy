@@ -4,21 +4,21 @@
 
 const checks = [
   ['Met departments', 'https://collectionapi.metmuseum.org/public/collection/v1/departments',
-    (d) => Array.isArray(d.departments) && d.departments.length > 0],
+    (data) => Array.isArray(data.departments) && data.departments.length > 0],
   ['Met search (v1.1)', 'https://collectionapi.metmuseum.org/public/collection/v1.1/search?hasImages=true&q=monet&limit=5&offset=0',
-    (d) => typeof d.total === 'number' && d.total > 0 && Array.isArray(d.objectIDs) && d.objectIDs.length > 0],
+    (data) => typeof data.total === 'number' && data.total > 0 && Array.isArray(data.objectIDs) && data.objectIDs.length > 0],
   ['Met object', 'https://collectionapi.metmuseum.org/public/collection/v1/objects/436535',
-    (d) => typeof d.title === 'string' && 'primaryImageSmall' in d && 'artistDisplayName' in d],
+    (data) => typeof data.title === 'string' && 'primaryImageSmall' in data && 'artistDisplayName' in data],
   ['Wikimedia Commons image search', 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrlimit=3&gsrsearch=Olympia+Manet&prop=imageinfo&iiprop=url&iiurlwidth=600&format=json&origin=*',
-    (d) => Object.values(d.query?.pages ?? {}).some((p) => p.imageinfo?.[0]?.thumburl)],
+    (data) => Object.values(data.query?.pages ?? {}).some((page) => page.imageinfo?.[0]?.thumburl)],
   ['Wikipedia search', 'https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=Realism+art+history&srlimit=1&format=json&origin=*',
-    (d) => typeof d.query?.search?.[0]?.title === 'string'],
+    (data) => typeof data.query?.search?.[0]?.title === 'string'],
   ['Wikipedia summary', 'https://en.wikipedia.org/api/rest_v1/page/summary/Realism_(art_movement)',
-    (d) => typeof d.extract === 'string' && d.extract.length > 0],
+    (data) => typeof data.extract === 'string' && data.extract.length > 0],
   ['Wikidata search', 'https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Claude+Monet&language=en&type=item&limit=5&format=json&origin=*',
-    (d) => Array.isArray(d.search) && d.search.some((x) => /painter/i.test(x.description ?? ''))],
+    (data) => Array.isArray(data.search) && data.search.some((result) => /painter/i.test(result.description ?? ''))],
   ['Wikidata entity', 'https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q296&props=claims&languages=en&format=json&origin=*',
-    (d) => Array.isArray(d.entities?.Q296?.claims?.P27)],
+    (data) => Array.isArray(data.entities?.Q296?.claims?.P27)],
 ];
 
 // Wikimedia rejects requests from anonymous generic clients (Node's default User-Agent gets HTTP 429), so say who is asking.

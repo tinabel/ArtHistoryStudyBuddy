@@ -159,6 +159,10 @@ Dependencies point one way: `ui` → `quiz` / `store` / `services` → `api`. On
 
 Lookup failures follow one rule: the Wikidata client (`api/wikidata.ts`) returns `''` for "not on Wikidata" and throws when it can't be reached; `services/workInfo.ts` turns a throw into `null`. Nothing saves a `null` result, so the next study session asks again.
 
+### Naming
+
+Names say what they hold: `work`, `metObject`, `colonIndex`, not `w`, `o`, `i`. ESLint enforces a three-letter minimum (`id-length` in `eslint.config.mjs`), with a short list of whole-word exceptions such as `id` and `to`.
+
 ### Saved data (SQLite)
 
 The database uses Node's built-in `node:sqlite`, so there is no extra package to install or rebuild. You can inspect it with any SQLite tool, for example `sqlite3 ~/Library/Application\ Support/art-history-study/study.sqlite .schema`.

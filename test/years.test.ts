@@ -19,7 +19,7 @@ describe('parseYear', () => {
 
 describe('decoyDates', () => {
   it('gives the requested number of different dates, never the answer', () => {
-    for (let i = 0; i < 40; i++) {
+    for (let round = 0; round < 40; round++) {
       const decoys = decoyDates('1814', 5);
       expect(decoys).toHaveLength(5);
       expect(new Set(decoys).size).toBe(5);
@@ -35,34 +35,34 @@ describe('decoyDates', () => {
   });
 
   it('keeps the format: "c." prefix, two-digit range end, suffix', () => {
-    for (let i = 0; i < 20; i++) {
-      for (const d of decoyDates('c. 1890-94', 6)) expect(d).toMatch(/^c\. \d{4}-\d{2}$/);
-      for (const d of decoyDates('1796-98', 6)) expect(d).toMatch(/^\d{4}-\d{2}$/);
-      for (const d of decoyDates('1500s', 6)) expect(d).toMatch(/^\d{4}s$/);
+    for (let round = 0; round < 20; round++) {
+      for (const decoy of decoyDates('c. 1890-94', 6)) expect(decoy).toMatch(/^c\. \d{4}-\d{2}$/);
+      for (const decoy of decoyDates('1796-98', 6)) expect(decoy).toMatch(/^\d{4}-\d{2}$/);
+      for (const decoy of decoyDates('1500s', 6)) expect(decoy).toMatch(/^\d{4}s$/);
     }
   });
 
   it('keeps the span of a range', () => {
-    for (const d of decoyDates('1818-19', 8)) {
-      const [start, end] = d.split('-').map(Number) as [number, number];
+    for (const decoy of decoyDates('1818-19', 8)) {
+      const [start, end] = decoy.split('-').map(Number) as [number, number];
       expect((end + 100 - (start % 100)) % 100).toBe(1);
     }
   });
 
   it('handles a four-digit range end and a century rollover', () => {
-    for (const d of decoyDates('1798-1802', 6)) expect(d).toMatch(/^\d{4}-\d{4}$/);
-    for (const d of decoyDates('1798-02', 6)) expect(d).toMatch(/^\d{4}-\d{2}$/);
+    for (const decoy of decoyDates('1798-1802', 6)) expect(decoy).toMatch(/^\d{4}-\d{4}$/);
+    for (const decoy of decoyDates('1798-02', 6)) expect(decoy).toMatch(/^\d{4}-\d{2}$/);
   });
 
   it('stays within a plausible range of years', () => {
-    for (let i = 0; i < 20; i++) {
-      for (const d of decoyDates('2020', 8)) expect(Number(d)).toBeLessThanOrEqual(2030);
-      for (const d of decoyDates('520', 8)) expect(Number(d)).toBeGreaterThanOrEqual(500);
+    for (let round = 0; round < 20; round++) {
+      for (const decoy of decoyDates('2020', 8)) expect(Number(decoy)).toBeLessThanOrEqual(2030);
+      for (const decoy of decoyDates('520', 8)) expect(Number(decoy)).toBeGreaterThanOrEqual(500);
     }
   });
 
   it('uses wider gaps for older work', () => {
-    const gaps = decoyDates('800', 8).map((d) => Math.abs(Number(d) - 800));
+    const gaps = decoyDates('800', 8).map((decoy) => Math.abs(Number(decoy) - 800));
     expect(Math.min(...gaps)).toBeGreaterThanOrEqual(60);
   });
 

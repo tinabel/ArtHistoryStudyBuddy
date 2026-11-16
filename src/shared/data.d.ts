@@ -33,8 +33,8 @@ export interface Filter {
 export type Kind = 'works' | 'terms' | 'pool';
 
 export interface Score {
-  c: number;
-  t: number;
+  correct: number;
+  total: number;
 }
 
 export interface Exam {

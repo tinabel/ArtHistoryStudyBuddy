@@ -16,8 +16,8 @@ export interface ParsedExam {
   works: ParsedWork[];
 }
 
-export const stripMd = (s: string): string =>
-  s.replace(/\*\*|__|`/g, '')
+export const stripMd = (text: string): string =>
+  text.replace(/\*\*|__|`/g, '')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/\*/g, '')
     .trim();
@@ -52,8 +52,8 @@ export function parseWork(line: string): ParsedWork {
 
 /** "Term: definition", "Term - definition", or bare "Term" -> { term, def } */
 export function parseTermLine(line: string): Term {
-  const m = /^(.+?)\s*(?::|\s[—–-]\s)\s*(.+)$/.exec(line);
-  return m ? { term: (m[1] ?? '').trim(), def: (m[2] ?? '').trim() } : { term: line, def: '' };
+  const match = /^(.+?)\s*(?::|\s[—–-]\s)\s*(.+)$/.exec(line);
+  return match ? { term: (match[1] ?? '').trim(), def: (match[2] ?? '').trim() } : { term: line, def: '' };
 }
 
 /**
@@ -90,13 +90,13 @@ export function parseExamMarkdown(text: string): ParsedExam {
 export function parseTermLines(text: string): Term[] {
   return text.split('\n')
     .map((line): Term => {
-      const i = line.indexOf(':');
-      return i > 0
-        ? { term: line.slice(0, i).trim(), def: line.slice(i + 1).trim() }
+      const colonIndex = line.indexOf(':');
+      return colonIndex > 0
+        ? { term: line.slice(0, colonIndex).trim(), def: line.slice(colonIndex + 1).trim() }
         : { term: line.trim(), def: '' };
     })
-    .filter((t) => t.term);
+    .filter((term) => term.term);
 }
 
 export const formatTermLines = (terms: readonly Term[]): string =>
-  terms.map((t) => `${t.term}: ${t.def}`).join('\n');
+  terms.map((term) => `${term.term}: ${term.def}`).join('\n');

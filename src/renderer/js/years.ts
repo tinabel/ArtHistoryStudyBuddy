@@ -11,23 +11,23 @@ const MAX_YEAR = 2030;
 
 /** The first year in a date string, or null when there isn't one. */
 export function parseYear(date: string): number | null {
-  const m = DATE.exec(date);
-  return m ? Number(m[2]) : null;
+  const match = DATE.exec(date);
+  return match ? Number(match[2]) : null;
 }
 
 /** Offsets grow for older work, where a few years either way would be too easy to rule out. */
 const scaleFor = (year: number): number => (year < 1000 ? 20 : year < 1500 ? 3 : 1);
 
-function shift(date: string, by: number): string | null {
-  const m = DATE.exec(date);
-  if (!m) return null;
-  const [, prefix = '', start = '', dash = '', end, suffix = ''] = m;
-  const newStart = Number(start) + by;
+function shift(date: string, years: number): string | null {
+  const match = DATE.exec(date);
+  if (!match) return null;
+  const [, prefix = '', start = '', dash = '', end, suffix = ''] = match;
+  const newStart = Number(start) + years;
   if (newStart < MIN_YEAR || newStart > MAX_YEAR) return null;
   let endText = '';
   if (end !== undefined) {
     const full = end.length === 2 ? Math.floor(Number(start) / 100) * 100 + Number(end) : Number(end);
-    const newEnd = full + by;
+    const newEnd = full + years;
     endText = dash + (end.length === 2 ? String(newEnd % 100).padStart(2, '0') : String(newEnd));
   }
   return `${prefix}${newStart}${endText}${suffix}`;
@@ -39,7 +39,7 @@ export function decoyDates(date: string, count: number): string[] {
   if (year === null) return [];
   const scale = scaleFor(year);
   const decoys: string[] = [];
-  for (const offset of shuffle(OFFSETS.flatMap((o) => [o * scale, -o * scale]))) {
+  for (const offset of shuffle(OFFSETS.flatMap((step) => [step * scale, -step * scale]))) {
     const decoy = shift(date, offset);
     if (decoy && decoy !== date && !decoys.includes(decoy)) decoys.push(decoy);
     if (decoys.length === count) break;

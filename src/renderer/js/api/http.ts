@@ -6,7 +6,7 @@ const TIMEOUT_MS = 15_000;
  */
 export async function getJson<T>(url: string, params?: Record<string, string>): Promise<T> {
   const target = params ? `${url}?${new URLSearchParams(params).toString()}` : url;
-  const res = await fetch(target, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${target}`);
-  return (await res.json()) as T;
+  const response = await fetch(target, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!response.ok) throw new Error(`HTTP ${response.status} for ${target}`);
+  return (await response.json()) as T;
 }

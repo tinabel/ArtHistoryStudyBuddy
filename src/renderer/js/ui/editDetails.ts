@@ -5,7 +5,7 @@ import { findWorkImage } from '../services/imageFinder.js';
 import { saveExams } from '../store.js';
 import type { Card, Exam, WorkCard, WorkImage } from '../types.js';
 import type { ActionMap } from './actions.js';
-import { $, esc, field } from './dom.js';
+import { byId, escapeHtml, field } from './dom.js';
 import { fileToDataUrl } from './image.js';
 
 interface Target {
@@ -23,32 +23,32 @@ export function track(next: Target | null): void {
 }
 
 /** Cards from the exam's own lists can be edited; random Met art isn't saved in the exam. */
-const isEditable = (c: Card | null): c is Card => c !== null && c.kind !== 'pool';
+const isEditable = (card: Card | null): card is Card => card !== null && card.kind !== 'pool';
 
 /** The fact a work question is about, as it is now. */
-const factOf = (c: WorkCard): string =>
-  ({ artist: c.artist, title: c.title, year: c.date, movement: c.movement ?? '' })[c.question];
+const factOf = (card: WorkCard): string =>
+  ({ artist: card.artist, title: card.title, year: card.date, movement: card.movement ?? '' })[card.question];
 
 /** Offers "Edit details" for the tracked card, once its answer is on screen. */
 export function showEditButton(): void {
-  if (isEditable(target?.card ?? null)) $('editBar').innerHTML = '<button type="button" class="secondary" data-action="study.edit">Edit details</button>';
+  if (isEditable(target?.card ?? null)) byId('editBar').innerHTML = '<button type="button" class="secondary" data-action="study.edit">Edit details</button>';
 }
 
 /** The image the open form would save: set by "Find automatically", a chosen file or Remove. */
 let editImage: WorkImage = { img: '', src: '' };
 
 const editField = (id: string, label: string, value: string | undefined): string =>
-  `<label class="field">${label}<input type="text" id="${id}" value="${esc(value)}"></label>`;
+  `<label class="field">${label}<input type="text" id="${id}" value="${escapeHtml(value)}"></label>`;
 
 const previewHtml = (image: WorkImage): string =>
-  image.img ? `<img src="${esc(image.img)}" alt="">` : '<span class="small">No image</span>';
+  image.img ? `<img src="${escapeHtml(image.img)}" alt="">` : '<span class="small">No image</span>';
 
 const imageUrlFor = (image: WorkImage): string => (image.img.startsWith('https://') ? image.img : '');
 
 const imageFieldsHtml = (image: WorkImage): string => `
   <div class="field">Image
     <div id="editPreview" class="edit-preview">${previewHtml(image)}</div>
-    <input type="text" id="editImageUrl" aria-label="Image link" placeholder="Paste an image link (https://…)" value="${esc(imageUrlFor(image))}">
+    <input type="text" id="editImageUrl" aria-label="Image link" placeholder="Paste an image link (https://…)" value="${escapeHtml(imageUrlFor(image))}">
     <div class="edit-actions">
       <button type="button" class="secondary" data-action="study.findImage">Find automatically</button>
       <button type="button" class="secondary" data-action="study.chooseImageFile">Choose a file…</button>
@@ -58,13 +58,13 @@ const imageFieldsHtml = (image: WorkImage): string => `
     <div id="editImageMsg" class="small"></div>
   </div>`;
 
-function editFormHtml(c: Card): string {
-  const fields = c.kind === 'terms'
-    ? `${editField('editTerm', 'Term', c.term)}
-       <label class="field">Definition<textarea id="editDef" rows="4">${esc(c.def)}</textarea></label>`
-    : `${editField('editArtist', 'Artist', c.artist)}${editField('editNationality', 'Nationality', c.nationality)}
-       ${editField('editTitle', 'Title', c.title)}${editField('editDate', 'Date', c.date)}
-       ${editField('editMovement', 'Art movement', c.movement)}${imageFieldsHtml(editImage)}`;
+function editFormHtml(card: Card): string {
+  const fields = card.kind === 'terms'
+    ? `${editField('editTerm', 'Term', card.term)}
+       <label class="field">Definition<textarea id="editDef" rows="4">${escapeHtml(card.def)}</textarea></label>`
+    : `${editField('editArtist', 'Artist', card.artist)}${editField('editNationality', 'Nationality', card.nationality)}
+       ${editField('editTitle', 'Title', card.title)}${editField('editDate', 'Date', card.date)}
+       ${editField('editMovement', 'Art movement', card.movement)}${imageFieldsHtml(editImage)}`;
   return `<div class="edit-form">
     ${fields}
     <div id="editMsg" class="small">Saved to this exam. Leave a field empty if it's unknown.</div>
@@ -77,12 +77,12 @@ function openEdit(): void {
   const card = target?.card ?? null;
   if (!isEditable(card)) return;
   if (card.kind !== 'terms') editImage = { img: card.img, src: card.src ?? '' };
-  $('editBar').innerHTML = '';
-  $('editArea').innerHTML = editFormHtml(card);
+  byId('editBar').innerHTML = '';
+  byId('editArea').innerHTML = editFormHtml(card);
 }
 
 function closeEdit(): void {
-  $('editArea').innerHTML = '';
+  byId('editArea').innerHTML = '';
   showEditButton();
 }
 
@@ -91,11 +91,11 @@ const formIsOpen = (): boolean => document.querySelector('#editArea .edit-form')
 
 // -- the image part of the form --
 
-const imageMessage = (text: string): void => { $('editImageMsg').textContent = text; };
+const imageMessage = (text: string): void => { byId('editImageMsg').textContent = text; };
 
 function setEditImage(image: WorkImage, message: string): void {
   editImage = image;
-  $('editPreview').innerHTML = previewHtml(image);
+  byId('editPreview').innerHTML = previewHtml(image);
   field('editImageUrl', HTMLInputElement).value = imageUrlFor(image);
   imageMessage(message);
 }
@@ -136,7 +136,7 @@ function imageToSave(): WorkImage {
 function saveEdit(): void {
   if (!target || target.card.kind === 'pool') return;
   const { exam: owner, card: current, onSaved } = target;
-  const message = (text: string): void => { $('editMsg').textContent = text; };
+  const message = (text: string): void => { byId('editMsg').textContent = text; };
   const undo: (() => void)[] = []; // put everything back if saving fails
 
   /** Applies `values` to `target`, remembering how to undo it. */
@@ -150,7 +150,7 @@ function saveEdit(): void {
     const term = inputValue('editTerm');
     if (!term) { message('A term needs a name.'); return; }
     const def = field('editDef', HTMLTextAreaElement).value.trim();
-    const saved = owner.terms.find((t) => t.term === current.term);
+    const saved = owner.terms.find((term) => term.term === current.term);
     if (saved) change(saved, { term, def });
     change(current, { term, def, answer: term });
   } else {
@@ -163,13 +163,13 @@ function saveEdit(): void {
       date: inputValue('editDate'), movement: inputValue('editMovement'), img: image.img, src: image.src,
     };
     if (!details.title) { message('A work needs a title.'); return; }
-    const saved = owner.works.find((w) => w.id === current.id);
+    const saved = owner.works.find((work) => work.id === current.id);
     if (saved) change(saved, details);
     change(current, details);
     change(current, { answer: factOf(current) });
     // Nationality belongs to the artist, so fix it on their other works too.
     if (details.artist) {
-      for (const w of owner.works) if (w.artist === details.artist) change(w, { nationality: details.nationality });
+      for (const work of owner.works) if (work.artist === details.artist) change(work, { nationality: details.nationality });
     }
   }
 

@@ -42,7 +42,7 @@ describe('Met API', () => {
       ['/objects/3', new Error('gone')],
       ['/search', { objectIDs: [1, 2, 3] }],
     ]);
-    expect((await met.searchWorks('portrait')).map((w) => w.id)).toEqual([1]);
+    expect((await met.searchWorks('portrait')).map((work) => work.id)).toEqual([1]);
     expect(calls[0]).toContain('hasImages=true');
     expect(calls[0]).toContain('q=portrait');
   });
@@ -175,8 +175,8 @@ describe('Wikidata', () => {
   it('picks the artist, not an exhibition with the same name', async () => {
     const calls = stubFetch(wikidata({ person: 'Q22', country: 'Q1002', countryClaims: { P1549: [demonym('Spanish')] } }));
     await nationalityOf('Goya');
-    expect(calls.some((c) => /ids=Q22\b/.test(c))).toBe(true);
-    expect(calls.some((c) => /ids=Q1\b/.test(c))).toBe(false);
+    expect(calls.some((call) => /ids=Q22\b/.test(call))).toBe(true);
+    expect(calls.some((call) => /ids=Q1\b/.test(call))).toBe(false);
   });
 
   it('falls back to the country name when there is no demonym', async () => {
@@ -210,12 +210,12 @@ describe('Wikidata artist info (movement)', () => {
   function artistWith(opts: { person: string; country?: string; movements: { id: string; label: string; rank?: Rank }[] }): Parameters<typeof stubFetch>[0] {
     const claims: Record<string, unknown[]> = {};
     if (opts.country) claims.P27 = [{ mainsnak: { datavalue: { value: { id: opts.country } } } }];
-    claims.P135 = opts.movements.map((m) => movementClaim(m.id, m.rank));
+    claims.P135 = opts.movements.map((movement) => movementClaim(movement.id, movement.rank));
     return [
       ['wbsearchentities', { search: [{ id: opts.person, description: 'French painter' }] }],
       [new RegExp(`ids=${opts.person}\\b`), { entities: { [opts.person]: { claims } } }],
       ...(opts.country ? [[new RegExp(`ids=${opts.country}\\b`), { entities: { [opts.country]: { claims: {}, labels: { en: { value: 'Testland' } } } } }] as [RegExp, unknown]] : []),
-      ...opts.movements.map((m): [RegExp, unknown] => [new RegExp(`ids=${m.id}\\b`), { entities: { [m.id]: { labels: { en: { value: m.label } } } } }]),
+      ...opts.movements.map((movement): [RegExp, unknown] => [new RegExp(`ids=${movement.id}\\b`), { entities: { [movement.id]: { labels: { en: { value: movement.label } } } } }]),
     ];
   }
 
@@ -253,7 +253,7 @@ describe('Wikidata artist info (movement)', () => {
 
   it('throws when the movement lookup fails, rather than passing off a partial answer as complete', async () => {
     stubFetch([
-      ...artistWith({ person: 'Q3009', country: 'Q3104', movements: [{ id: 'Q3211', label: 'realism' }] }).filter(([m]) => !String(m).includes('Q3211')),
+      ...artistWith({ person: 'Q3009', country: 'Q3104', movements: [{ id: 'Q3211', label: 'realism' }] }).filter(([matcher]) => !String(matcher).includes('Q3211')),
       [/ids=Q3211\b/, new Error('down')],
     ]);
     await expect(artistInfoOf('Info Painter I')).rejects.toThrow('HTTP 500');
@@ -291,7 +291,7 @@ describe('Wikidata work movement', () => {
   it('requires the description to be an artwork by that artist', async () => {
     const calls = stubFetch(workRoutes({ search: [{ id: 'Q4003', description: 'painting by John Smith' }, { id: 'Q4004', description: 'novel by Édouard Manet' }] }));
     expect(await workMovementOf('Olympia', 'Édouard Manet')).toBe('');
-    expect(calls.some((c) => /ids=Q400[34]/.test(c))).toBe(false);
+    expect(calls.some((call) => /ids=Q400[34]/.test(call))).toBe(false);
   });
 
   it('returns "" when the artwork has no movement or the input is empty, and throws when the search fails', async () => {
@@ -335,10 +335,10 @@ describe('Wikidata request retries', () => {
   it('does not retry a 404 (it cannot succeed), but does retry a server error', async () => {
     const missing = stubFetch([]); // every URL is a 404
     expect(await nationalityOf('Four Oh Four')).toBe('');
-    expect(missing.filter((c) => c.includes('wbsearchentities'))).toHaveLength(1);
+    expect(missing.filter((call) => call.includes('wbsearchentities'))).toHaveLength(1);
 
     const broken = stubFetch([['wbsearchentities', new Error('server error')]]);
     await expect(nationalityOf('Five Hundred')).rejects.toThrow('HTTP 500');
-    expect(broken.filter((c) => c.includes('wbsearchentities'))).toHaveLength(2);
+    expect(broken.filter((call) => call.includes('wbsearchentities'))).toHaveLength(2);
   });
 });

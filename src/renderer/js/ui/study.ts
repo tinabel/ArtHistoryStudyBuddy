@@ -5,12 +5,12 @@ import { enrichWorks, lookupWorkInfo } from '../services/workInfo.js';
 import { kindStats, recordResult, saveExams } from '../store.js';
 import type { Card, Exam, Kind, Mode, Question, Source, WorkCard } from '../types.js';
 import { indexOf, type ActionMap } from './actions.js';
-import { $, esc, field, sourceLink } from './dom.js';
+import { byId, escapeHtml, field, sourceLink } from './dom.js';
 import * as details from './editDetails.js';
 import { go } from './router.js';
 
-let exam: Exam | null = null;
-let card: Card | null = null;
+let currentExam: Exam | null = null;
+let currentCard: Card | null = null;
 let kind: Kind = 'works';
 let answered = false;
 let session = { correct: 0, total: 0 };
@@ -18,25 +18,25 @@ let drawId = 0; // guards against out-of-order async draws
 /** What the answer area currently shows, so it can be redrawn after the details are edited. */
 let shown: { kind: 'feedback'; correct: boolean } | { kind: 'reveal' } | null = null;
 
-const setCard = (html: string): void => { $('card').innerHTML = html; };
+const setCard = (html: string): void => { byId('card').innerHTML = html; };
 const modeSelect = (): HTMLSelectElement => field('mode', HTMLSelectElement);
 const sourceSelect = (): HTMLSelectElement => field('source', HTMLSelectElement);
 const currentMode = (): Mode => modeSelect().value as Mode;
 
 export function start(selected: Exam): void {
-  exam = selected;
+  currentExam = selected;
   session = { correct: 0, total: 0 };
-  $('studyTitle').textContent = exam.name;
-  sourceSelect().innerHTML = studySources(exam)
-    .map((s) => `<option value="${s.value}">${esc(s.label)}</option>`).join('');
+  byId('studyTitle').textContent = currentExam.name;
+  sourceSelect().innerHTML = studySources(currentExam)
+    .map((source) => `<option value="${source.value}">${escapeHtml(source.label)}</option>`).join('');
   go('study');
   void next();
   // Fill in nationality / movement for works saved before those existed, in the background.
-  void enrichWorks(exam.works, saveExams);
+  void enrichWorks(currentExam.works, saveExams);
 }
 
 async function next(): Promise<void> {
-  if (!exam) return;
+  if (!currentExam) return;
   const ticket = ++drawId;
   answered = false;
   shown = null;
@@ -44,17 +44,17 @@ async function next(): Promise<void> {
   setCard('<div class="small">Loading...</div>');
   updateScore();
 
-  const drawn = await drawCard(exam, kind, currentMode());
-  if (!isCardError(drawn)) await backfillArtistInfo(exam, drawn);
+  const drawn = await drawCard(currentExam, kind, currentMode());
+  if (!isCardError(drawn)) await backfillArtistInfo(currentExam, drawn);
   if (ticket !== drawId) return;
 
   if (isCardError(drawn)) {
-    card = null;
+    currentCard = null;
     details.track(null);
-    setCard(`<div class="small">${esc(drawn.error)}</div>`);
+    setCard(`<div class="small">${escapeHtml(drawn.error)}</div>`);
   } else {
-    card = drawn;
-    details.track({ exam, card: drawn, onSaved: redrawAfterEdit });
+    currentCard = drawn;
+    details.track({ exam: currentExam, card: drawn, onSaved: redrawAfterEdit });
     setCard(cardHtml(drawn));
   }
 }
@@ -62,7 +62,7 @@ async function next(): Promise<void> {
 /** The card's facts were corrected in place: show the new image and redraw whatever answer is on screen. */
 function redrawAfterEdit(): void {
   const media = document.querySelector('.card-media');
-  if (card && card.kind !== 'terms' && media) media.innerHTML = mediaInnerHtml(card);
+  if (currentCard && currentCard.kind !== 'terms' && media) media.innerHTML = mediaInnerHtml(currentCard);
   if (shown?.kind === 'feedback') showFeedback(shown.correct);
   else if (shown?.kind === 'reveal') reveal();
 }
@@ -71,13 +71,13 @@ function redrawAfterEdit(): void {
  * Works saved before nationality / movement existed: look them up once and remember them ('' = looked up, unknown).
  * The background pass started in `start` does this for every work; this makes sure the card on screen has them.
  */
-async function backfillArtistInfo(owner: Exam, c: Card): Promise<void> {
-  if (c.kind !== 'works' || !c.artist || (c.nationality !== undefined && c.movement !== undefined)) return;
-  const info = await lookupWorkInfo(c);
+async function backfillArtistInfo(owner: Exam, card: Card): Promise<void> {
+  if (card.kind !== 'works' || !card.artist || (card.nationality !== undefined && card.movement !== undefined)) return;
+  const info = await lookupWorkInfo(card);
   if (!info) return; // couldn't ask: leave the fields unset so a later session retries
-  c.nationality ??= info.nationality;
-  c.movement ??= info.movement;
-  const saved = owner.works.find((w) => w.id === c.id);
+  card.nationality ??= info.nationality;
+  card.movement ??= info.movement;
+  const saved = owner.works.find((work) => work.id === card.id);
   if (saved) {
     saved.nationality ??= info.nationality;
     saved.movement ??= info.movement;
@@ -87,14 +87,14 @@ async function backfillArtistInfo(owner: Exam, c: Card): Promise<void> {
 
 // ---- rendering ----
 
-function mediaInnerHtml(c: WorkCard): string {
-  return c.img
-    ? `<img src="${esc(c.img)}">`
-    : `<h3>${esc(c.title)}</h3><div class="small">(no image)</div>`;
+function mediaInnerHtml(card: WorkCard): string {
+  return card.img
+    ? `<img src="${escapeHtml(card.img)}">`
+    : `<h3>${escapeHtml(card.title)}</h3><div class="small">(no image)</div>`;
 }
 
-function mediaHtml(c: Card): string {
-  return c.kind === 'terms' ? '' : `<div class="card-media">${mediaInnerHtml(c)}</div>`;
+function mediaHtml(card: Card): string {
+  return card.kind === 'terms' ? '' : `<div class="card-media">${mediaInnerHtml(card)}</div>`;
 }
 
 const QUESTION_TEXT: Record<Question, string> = {
@@ -104,29 +104,29 @@ const QUESTION_TEXT: Record<Question, string> = {
   movement: 'What art movement is this?',
 };
 
-function questionHtml(c: Card): string {
-  if (c.kind === 'terms') {
-    return c.choices
-      ? `<div class="prompt">${esc(c.def)}</div><div>Which term?</div>`
-      : `<h3 class="prompt">${esc(c.term)}</h3>`;
+function questionHtml(card: Card): string {
+  if (card.kind === 'terms') {
+    return card.choices
+      ? `<div class="prompt">${escapeHtml(card.def)}</div><div>Which term?</div>`
+      : `<h3 class="prompt">${escapeHtml(card.term)}</h3>`;
   }
-  return c.choices ? `<div>${QUESTION_TEXT[c.question]}</div>` : '';
+  return card.choices ? `<div>${QUESTION_TEXT[card.question]}</div>` : '';
 }
 
-function interactionHtml(c: Card): string {
-  if (c.choices) {
-    return `<div id="choices">${c.choices.map((choice, i) =>
-      `<div><button type="button" class="secondary choice" data-action="study.pick" data-i="${i}">${esc(choice)}</button></div>`).join('')}</div>`;
+function interactionHtml(card: Card): string {
+  if (card.choices) {
+    return `<div id="choices">${card.choices.map((choice, choiceIndex) =>
+      `<div><button type="button" class="secondary choice" data-action="study.pick" data-i="${choiceIndex}">${escapeHtml(choice)}</button></div>`).join('')}</div>`;
   }
-  const label = c.kind === 'terms' ? 'Definition' : 'Answer';
+  const label = card.kind === 'terms' ? 'Definition' : 'Answer';
   return `<div id="answer"><button type="button" data-action="study.reveal">Show ${label}</button></div>`;
 }
 
-function cardHtml(c: Card): string {
-  return `<div class="card-layout${c.kind === 'terms' ? '' : ' with-media'}">
-    ${mediaHtml(c)}
+function cardHtml(card: Card): string {
+  return `<div class="card-layout${card.kind === 'terms' ? '' : ' with-media'}">
+    ${mediaHtml(card)}
     <div class="card-body">
-      ${questionHtml(c)}${interactionHtml(c)}
+      ${questionHtml(card)}${interactionHtml(card)}
       <div id="feedback"></div>
       <div id="editBar"></div>
       <button type="button" class="secondary" data-action="study.next">Next</button>
@@ -141,68 +141,68 @@ const gradeButtonsHtml = (): string => answered ? '' : `
     <button type="button" class="danger" data-action="study.grade" data-ok="false">Missed</button>
   </div>`;
 
-const workDetails = (c: WorkCard): string =>
-  `${esc(c.title)}, ${esc(c.date)}${c.movement ? ` · ${esc(c.movement)}` : ''}`;
-const artistLabel = (c: WorkCard): string => `${esc(c.artist || 'Unknown')}${c.nationality ? ` (${esc(c.nationality)})` : ''}`;
+const workDetails = (card: WorkCard): string =>
+  `${escapeHtml(card.title)}, ${escapeHtml(card.date)}${card.movement ? ` · ${escapeHtml(card.movement)}` : ''}`;
+const artistLabel = (card: WorkCard): string => `${escapeHtml(card.artist || 'Unknown')}${card.nationality ? ` (${escapeHtml(card.nationality)})` : ''}`;
 
 /** The answer first, then the rest of the work's citation (so the answer isn't repeated). */
-function answerSummary(c: Card): string {
-  if (c.kind === 'terms') return esc(c.answer);
-  const movement = c.movement ? ` · ${esc(c.movement)}` : '';
-  switch (c.question) {
-    case 'artist': return `${artistLabel(c)} — ${esc(c.title)}, ${esc(c.date)}${movement}`;
-    case 'title': return `${esc(c.title)} — ${artistLabel(c)}, ${esc(c.date)}${movement}`;
-    case 'year': return `${esc(c.date)} — ${esc(c.title)}, ${artistLabel(c)}${movement}`;
-    case 'movement': return `${esc(c.movement)} — ${esc(c.title)}, ${artistLabel(c)}, ${esc(c.date)}`;
+function answerSummary(card: Card): string {
+  if (card.kind === 'terms') return escapeHtml(card.answer);
+  const movement = card.movement ? ` · ${escapeHtml(card.movement)}` : '';
+  switch (card.question) {
+    case 'artist': return `${artistLabel(card)} — ${escapeHtml(card.title)}, ${escapeHtml(card.date)}${movement}`;
+    case 'title': return `${escapeHtml(card.title)} — ${artistLabel(card)}, ${escapeHtml(card.date)}${movement}`;
+    case 'year': return `${escapeHtml(card.date)} — ${escapeHtml(card.title)}, ${artistLabel(card)}${movement}`;
+    case 'movement': return `${escapeHtml(card.movement)} — ${escapeHtml(card.title)}, ${artistLabel(card)}, ${escapeHtml(card.date)}`;
   }
 }
 
 function updateScore(): void {
-  const all = exam ? kindStats(exam, kind) : undefined;
-  const pct = all?.t ? Math.round(100 * all.c / all.t) : 0;
-  $('score').textContent = `Session: ${session.correct} / ${session.total}` +
-    (all ? ` · All-time: ${all.c} / ${all.t} (${pct}%)` : '');
+  const allTime = currentExam ? kindStats(currentExam, kind) : undefined;
+  const percent = allTime?.total ? Math.round(100 * allTime.correct / allTime.total) : 0;
+  byId('score').textContent = `Session: ${session.correct} / ${session.total}` +
+    (allTime ? ` · All-time: ${allTime.correct} / ${allTime.total} (${percent}%)` : '');
 }
 
 // ---- answering ----
 
 function record(correct: boolean): void {
-  if (answered || !exam) return;
+  if (answered || !currentExam) return;
   answered = true;
   session.total++;
   if (correct) session.correct++;
-  recordResult(exam, kind, correct);
+  recordResult(currentExam, kind, correct);
   updateScore();
   document.getElementById('selfgrade')?.remove();
   details.showEditButton();
 }
 
 function reveal(): void {
-  if (!card) return;
-  const body = card.kind === 'terms'
-    ? esc(card.def || '(no definition — edit exam to add)')
-    : `<strong>${artistLabel(card)}</strong><br>${workDetails(card)}`;
-  $('answer').innerHTML = body + sourceLink(card.src) + gradeButtonsHtml();
+  if (!currentCard) return;
+  const body = currentCard.kind === 'terms'
+    ? escapeHtml(currentCard.def || '(no definition — edit exam to add)')
+    : `<strong>${artistLabel(currentCard)}</strong><br>${workDetails(currentCard)}`;
+  byId('answer').innerHTML = body + sourceLink(currentCard.src) + gradeButtonsHtml();
   shown = { kind: 'reveal' };
   details.showEditButton();
 }
 
 function showFeedback(correct: boolean): void {
-  if (!card) return;
-  const feedback = $('feedback');
+  if (!currentCard) return;
+  const feedback = byId('feedback');
   feedback.className = correct ? 'correct' : 'incorrect';
-  feedback.innerHTML = `${correct ? 'Correct! ' : 'Answer: '}${answerSummary(card)}${sourceLink(card.src)}`;
+  feedback.innerHTML = `${correct ? 'Correct! ' : 'Answer: '}${answerSummary(currentCard)}${sourceLink(currentCard.src)}`;
   shown = { kind: 'feedback', correct };
 }
 
 function pickChoice(index: number): void {
-  if (answered || !card?.choices) return;
-  const correct = card.choices[index] === card.answer;
+  if (answered || !currentCard?.choices) return;
+  const correct = currentCard.choices[index] === currentCard.answer;
   showFeedback(correct);
-  const choices = card.choices;
-  document.querySelectorAll('#choices button').forEach((button, i) => {
-    if (choices[i] === card?.answer) button.classList.add('right');
-    else if (i === index) button.classList.add('wrong');
+  const choices = currentCard.choices;
+  document.querySelectorAll('#choices button').forEach((button, choiceIndex) => {
+    if (choices[choiceIndex] === currentCard?.answer) button.classList.add('right');
+    else if (choiceIndex === index) button.classList.add('wrong');
   });
   record(correct);
 }
@@ -211,7 +211,7 @@ export const actions: ActionMap = {
   'study.back': () => { go('home'); },
   'study.next': next,
   'study.reveal': reveal,
-  'study.pick': (el) => { pickChoice(indexOf(el)); },
-  'study.grade': (el) => { record(el.dataset.ok === 'true'); },
+  'study.pick': (element) => { pickChoice(indexOf(element)); },
+  'study.grade': (element) => { record(element.dataset.ok === 'true'); },
   ...details.actions,
 };

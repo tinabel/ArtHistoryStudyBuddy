@@ -38,7 +38,7 @@ export const makeExam = ({ name, course, works = [], terms = [], filter = null }
 function ensureCourse(name: string): boolean {
   if (!name || courses.includes(name)) return false;
   courses.push(name);
-  courses.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  courses.sort((first, second) => first.localeCompare(second, undefined, { numeric: true }));
   return true;
 }
 
@@ -53,9 +53,9 @@ export function addCourse(name: string): boolean {
 
 /** Removes the class but keeps its exams, which go back to "no class". */
 export function removeCourse(name: string): void {
-  const at = courses.indexOf(name);
-  if (at < 0) return;
-  courses.splice(at, 1);
+  const position = courses.indexOf(name);
+  if (position < 0) return;
+  courses.splice(position, 1);
   for (const exam of exams) if (exam.course === name) delete exam.course;
   persist();
 }
@@ -90,14 +90,19 @@ export function resetStats(index: number): void {
 export const saveExams = persist;
 
 export function recordResult(exam: Exam, kind: Kind, correct: boolean): void {
-  const score = (exam.stats[kind] ??= { c: 0, t: 0 });
-  score.t++;
-  if (correct) score.c++;
+  const score = (exam.stats[kind] ??= { correct: 0, total: 0 });
+  score.total++;
+  if (correct) score.correct++;
   persist();
 }
 
 export const kindStats = (exam: Exam, kind: Kind): Score | undefined => exam.stats[kind];
 
 export function overallStats(exam: Exam): Score {
-  return Object.values(exam.stats).reduce((acc, s) => ({ c: acc.c + s.c, t: acc.t + s.t }), { c: 0, t: 0 });
+  const overall: Score = { correct: 0, total: 0 };
+  for (const score of Object.values(exam.stats)) {
+    overall.correct += score.correct;
+    overall.total += score.total;
+  }
+  return overall;
 }

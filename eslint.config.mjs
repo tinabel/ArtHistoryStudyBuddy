@@ -4,7 +4,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-  globalIgnores(['build/**', 'dist/**', 'coverage/**', 'node_modules/**', 'ArtStudyBuddy/**']),
+  globalIgnores(['build/**', 'dist/**', 'coverage/**', 'node_modules/**', '.claude/**']),
 
   {
     files: ['**/*.ts'],
@@ -15,6 +15,9 @@ export default defineConfig([
     rules: {
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // Names should say what they hold: no single letters or two-letter abbreviations.
+      // The exceptions are whole words or names fixed by something outside the code (the Met's `q` search parameter).
+      'id-length': ['error', { min: 3, exceptions: ['id', 'to', 'go', 'ok', 'fs', 'os', 'q'], properties: 'never' }],
     },
   },
   { files: ['src/renderer/**/*.ts'], languageOptions: { globals: globals.browser } },

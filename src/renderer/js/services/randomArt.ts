@@ -31,12 +31,12 @@ export async function pickRandomWork(filter: Filter): Promise<Work | null> {
   if (!total) return null;
 
   // Results come in pages, so jump to a random page and take one of its objects.
-  for (let i = 0; i < MAX_TRIES; i++) {
+  for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
     const offset = Math.floor(Math.random() * Math.min(total, MAX_OFFSET));
     const { ids } = await met.searchPage(params, { limit: PAGE_SIZE, offset });
     if (!ids.length) continue;
-    const o = await met.getObject(pick(ids));
-    if (o?.primaryImageSmall && o.artistDisplayName) return met.toWork(o);
+    const metObject = await met.getObject(pick(ids));
+    if (metObject?.primaryImageSmall && metObject.artistDisplayName) return met.toWork(metObject);
   }
   return null;
 }
