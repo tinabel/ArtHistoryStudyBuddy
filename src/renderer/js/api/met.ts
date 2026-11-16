@@ -6,6 +6,7 @@ const ROOT = 'https://collectionapi.metmuseum.org/public/collection';
 const BASE = `${ROOT}/v1`;
 // /v1/search was retired on 2026-10-01 (it answers 410 Gone). v1.1 is paginated with limit and offset.
 const SEARCH = `${ROOT}/v1.1/search`;
+const CANDIDATES_PER_RESULT = 3; // search hits examined per result wanted, since many have no picture
 
 export interface MetObject {
   objectID: number;
@@ -67,9 +68,13 @@ export const toWork = (metObject: MetObject): Work => ({
 
 /** Free-text search; returns up to `limit` works that have an image. */
 export async function searchWorks(query: string, limit: number): Promise<Work[]> {
-  const ids = (await searchIds({ q: query })).slice(0, limit);
+  // Many Met records have no small picture even when they count as having images, so look at more than `limit`.
+  const ids = (await searchIds({ q: query })).slice(0, limit * CANDIDATES_PER_RESULT);
   const objects = await Promise.all(ids.map(getObject));
-  return objects.filter((metObject): metObject is MetObject => metObject?.primaryImageSmall !== undefined && metObject.primaryImageSmall !== '').map(toWork);
+  return objects
+    .filter((metObject): metObject is MetObject => metObject?.primaryImageSmall !== undefined && metObject.primaryImageSmall !== '')
+    .slice(0, limit)
+    .map(toWork);
 }
 
 /** First result for `title` whose artist name contains `surname`, or null. */
